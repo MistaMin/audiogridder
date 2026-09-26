@@ -15,6 +15,8 @@
 #include "ProcessorWindow.hpp"
 #include "AudioRingBuffer.hpp"
 
+#include <juce_dsp/juce_dsp.h>
+
 namespace e47 {
 
 class ProcessorChain;
@@ -86,6 +88,9 @@ class Processor : public LogTagDelegate, public std::enable_shared_from_this<Pro
     int getLatencySamples();
     void suspendProcessing(const bool shouldBeSuspended);
     void updateLatencyBuffers(int newLatency);
+    void setOversamplingFactor(int factor);
+    int getOversamplingFactor() const { return m_oversamplingFactor.load(); }
+    int getOversamplingLatencySamples() const { return m_oversamplingLatencySamples.load(); }
     void enableAllBuses();
     void setProcessingPrecision(AudioProcessor::ProcessingPrecision p);
     void setMonoChannels(uint64 channels);
@@ -220,6 +225,39 @@ class Processor : public LogTagDelegate, public std::enable_shared_from_this<Pro
     AudioRingBuffer<double> m_bypassBufferD;
     int m_lastKnownLatency = 0;
     Point<int> m_lastPosition = {0, 0};
+
+    // Per-plugin oversampling. Requested factor is set via the network message (UI toggle), the audio thread
+    // lazily (re-)builds the oversampling stages the next time it processes a block. Supported factors: 1 (off),
+    // 2 and 4. One set of oversampling stages is kept per channel to support multi-mono plugin instances.
+    template <typename T>
+    struct OversamplingSlot {
+        std::unique_ptr<dsp::Oversampling<T>> os;
+        std::vector<T*> chanPtrs;
+        int builtFactor = 1;
+        int builtChannels = 0;
+    };
+
+    std::atomic_int m_oversamplingFactor{1};
+    std::atomic_int m_oversamplingLatencySamples{0};
+    std::mutex m_oversamplingMtx;
+    std::vector<OversamplingSlot<float>> m_oversamplingF;
+    std::vector<OversamplingSlot<double>> m_oversamplingD;
+
+    template <typename T>
+    std::vector<OversamplingSlot<T>>& getOversamplingStages();
+
+    // Base (non-oversampled) rate/block size as last passed to prepareToPlay, and the resulting rate/block size
+    // that is actually handed to the wrapped plugin once the oversampling factor is applied.
+    double getEffectiveSampleRate() const { return m_sampleRate * (double)m_oversamplingFactor.load(); }
+    int getEffectiveBlockSize() const { return m_blockSize * m_oversamplingFactor.load(); }
+    void resetOversamplingStages();
+
+    // Runs processFn (the wrapped plugin/client processBlock call) for channel slot ch, oversampling the buffer
+    // up/down around it if oversampling is currently enabled for this processor. Returns the extra latency (in
+    // samples, at the original sample rate) introduced by the oversampling stages.
+    template <typename T>
+    int runWithOversampling(int ch, AudioBuffer<T>& buffer, MidiBuffer& midiMessages,
+                            const std::function<void(AudioBuffer<T>&, MidiBuffer&)>& processFn);
 
     enum FormatType { VST, VST3, AU, LV2 };
     FormatType m_fmt;

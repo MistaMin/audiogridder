@@ -192,9 +192,11 @@ def conf(args, sysroot):
 
     if sdksDir is not None:
         cmake_params.append('-DAG_SDKS_ROOT=' + sdksDir)
-        cmake_params.append('-DAG_VST2_PLUGIN_ENABLED=ON')
-        if platform in ('macos', 'windows'):
-            cmake_params.append('-DAG_AAX_PLUGIN_ENABLED=ON')
+        if os.path.isdir(os.path.join(sdksDir, 'vstsdk2.4')):
+            cmake_params.append('-DAG_VST2_PLUGIN_ENABLED=ON')
+        if os.path.isdir(os.path.join(sdksDir, 'aax-sdk')):
+            if platform in ('macos', 'windows'):
+                cmake_params.append('-DAG_AAX_PLUGIN_ENABLED=ON')
 
     if platform in ('macos', 'linux'):
         cmake_params.append('-DCMAKE_BUILD_TYPE=' + args.buildtype)

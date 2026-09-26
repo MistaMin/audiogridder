@@ -166,6 +166,9 @@ void Worker::run() {
                 case UnbypassPlugin::Type:
                     handleMessage(Message<Any>::convert<UnbypassPlugin>(msg));
                     break;
+                case SetPluginOversampling::Type:
+                    handleMessage(Message<Any>::convert<SetPluginOversampling>(msg));
+                    break;
                 case ExchangePlugins::Type:
                     handleMessage(Message<Any>::convert<ExchangePlugins>(msg));
                     break;
@@ -499,6 +502,13 @@ void Worker::handleMessage(std::shared_ptr<Message<UnbypassPlugin>> msg) {
     traceScope();
     if (auto proc = m_audio->getProcessor(pPLD(msg).getNumber())) {
         proc->suspendProcessing(false);
+    }
+}
+
+void Worker::handleMessage(std::shared_ptr<Message<SetPluginOversampling>> msg) {
+    traceScope();
+    if (auto proc = m_audio->getProcessor(pDATA(msg)->idx)) {
+        proc->setOversamplingFactor(pDATA(msg)->factor);
     }
 }
 

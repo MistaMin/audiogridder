@@ -87,7 +87,7 @@ endif()
 
 add_subdirectory(JUCE)
 
-if(AG_SDKS_ROOT)
+if(AG_SDKS_ROOT AND AG_VST2_PLUGIN_ENABLED)
   juce_set_vst2_sdk_path(${AG_VST2_SDK})
 endif()
 

@@ -382,6 +382,16 @@ void PluginEditor::buttonClicked(Button* button, const ModifierKeys& modifiers, 
                 button->setColour(PluginButton::textColourOffId, Colours::white);
             }
         };
+        auto oversamplingFn = [this, idx, button] {
+            traceScope();
+            int factor = m_processor.getOversamplingFactor(idx);
+            factor = factor >= 4 ? 1 : factor * 2;
+            m_processor.setPluginOversampling(idx, factor);
+            if (auto* pb = dynamic_cast<PluginButton*>(button)) {
+                pb->setOversamplingFactor(factor);
+                pb->repaint();
+            }
+        };
         auto moveUpFn = [this, idx] {
             traceScope();
             if (idx > 0) {
@@ -459,6 +469,9 @@ void PluginEditor::buttonClicked(Button* button, const ModifierKeys& modifiers, 
                     } else {
                         bypassFn();
                     }
+                    break;
+                case PluginButton::OVERSAMPLING:
+                    oversamplingFn();
                     break;
                 case PluginButton::MOVE_DOWN:
                     moveDownFn();
@@ -601,6 +614,7 @@ void PluginEditor::createPluginButtons() {
                 b->setButtonText("( " + m_processor.getLoadedPlugin(idx).name + " )");
                 b->setColour(PluginButton::textColourOffId, Colours::grey);
             }
+            b->setOversamplingFactor(plug.oversamplingFactor);
 #if JucePlugin_IsSynth
             m_newPluginButton.setEnabled(false);
 #endif

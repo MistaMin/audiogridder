@@ -53,9 +53,14 @@ void PluginButton::paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, 
         // bypass button
         int indent = 5;
         int width = getHeight() - indent * 2;
-        textIndentLeft = indent * 2 + width;
 
         m_bypassArea = Rectangle<int>(indent, indent, width, width);
+
+        // oversampling toggle (cycles 1x/2x/4x)
+        int osWidth = width + 8;
+        m_oversamplingArea = Rectangle<int>(indent * 2 + width, indent, osWidth, width);
+
+        textIndentLeft = indent * 3 + width + osWidth;
 
         int space = 4;
         int indent_right = 6;
@@ -74,6 +79,20 @@ void PluginButton::paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, 
         g.drawEllipse(m_bypassArea.toFloat(), symLineThikness);
         g.drawLine((float)m_bypassArea.getCentreX(), (float)m_bypassArea.getY() - 1, (float)m_bypassArea.getCentreX(),
                    (float)m_bypassArea.getY() + 5, symLineThikness);
+
+        // oversampling label
+        if (m_oversamplingFactor > 1) {
+            g.setColour(fgColor);
+            g.fillRect(m_oversamplingArea);
+            g.setColour(Colours::black);
+        } else {
+            g.setColour(txtColor);
+            g.drawRect(m_oversamplingArea, symLineThikness);
+        }
+        Font osFont(jmin(m_oversamplingArea.getHeight() * 0.6f, 11.0f));
+        osFont.setBold(true);
+        g.setFont(osFont);
+        g.drawFittedText(String(m_oversamplingFactor) + "x", m_oversamplingArea, Justification::centred, 1);
 
         Rectangle<float> rect;
 #if !JucePlugin_IsSynth
@@ -151,6 +170,8 @@ PluginButton::AreaType PluginButton::getAreaType() const {
     }
     if (isWithinArea(m_bypassArea, m_lastMousePosition)) {
         return PluginButton::BYPASS;
+    } else if (isWithinArea(m_oversamplingArea, m_lastMousePosition)) {
+        return PluginButton::OVERSAMPLING;
 #if !JucePlugin_IsSynth
     } else if (isWithinArea(m_moveUpArea, m_lastMousePosition)) {
         return PluginButton::MOVE_UP;

@@ -10,6 +10,9 @@
 #include "App.hpp"
 #include "Server.hpp"
 
+#include <cmath>
+#include <functional>
+
 namespace e47 {
 
 #define callBackendWithReturn(method)    \
@@ -570,18 +573,21 @@ bool Processor::processBlockInternal(AudioBuffer<T>& buffer, MidiBuffer& midiMes
         TimeTrace::addTracePoint("proc_got_backend");
         traceln("  processing ch " << ch << ": suspended=" << (int)p->isSuspended());
         if (ch == 0) {
-            latencySamples = p->getLatencySamples();
+            latencySamples = p->getLatencySamples() + m_oversamplingLatencySamples.load();
             updateLatencyBuffers(latencySamples);
         }
         if (!p->isSuspended()) {
+            std::function<void(AudioBuffer<T>&, MidiBuffer&)> callPlugin = [&p](AudioBuffer<T>& b, MidiBuffer& m) {
+                p->processBlock(b, m);
+            };
             if (isPlugin && m_channels > 1) {
                 // multi-mono
                 ScopedNoDenormals noDenormals;
                 AudioBuffer<T> chBuffer(buffer.getArrayOfWritePointers() + ch, 1, buffer.getNumSamples());
-                p->processBlock(chBuffer, midiMessages);
+                runWithOversampling(ch, chBuffer, midiMessages, callPlugin);
             } else {
                 ScopedNoDenormals noDenormals;
-                p->processBlock(buffer, midiMessages);
+                runWithOversampling(ch, buffer, midiMessages, callPlugin);
             }
             TimeTrace::addTracePoint("proc_process_" + String(ch));
         } else {
@@ -686,6 +692,11 @@ void Processor::processBlockBypassedMultiMono(AudioBuffer<double>& buffer, int c
 
 void Processor::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) {
     traceScope();
+    m_sampleRate = sampleRate;
+    m_blockSize = maximumExpectedSamplesPerBlock;
+    resetOversamplingStages();
+    double effSampleRate = getEffectiveSampleRate();
+    int effBlockSize = getEffectiveBlockSize();
     if (isLoaded()) {
         if (!m_isClient) {
             ChannelSet cs;
@@ -699,12 +710,12 @@ void Processor::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBl
                     if (m_fmt == VST3) {
                         runOnMsgThreadSync([&] {
                             if (auto p = getPlugin(ch)) {
-                                p->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+                                p->prepareToPlay(effSampleRate, effBlockSize);
                             }
                         });
                     } else {
                         if (auto p = getPlugin(ch)) {
-                            p->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+                            p->prepareToPlay(effSampleRate, effBlockSize);
                         }
                     }
                 } else {
@@ -766,15 +777,16 @@ void Processor::suspendProcessing(const bool shouldBeSuspended) {
                     c->suspendProcessing(false);
                 }
             } else {
+                double effSampleRate = getEffectiveSampleRate();
+                int effBlockSize = getEffectiveBlockSize();
                 for (int ch = 0; ch < m_channels; ch++) {
                     if (m_channels == 1 || m_monoChannels.isOutputActive(ch)) {
                         if (auto p = getPlugin(ch)) {
                             logln("preparing '" << getName() << "' (channel=" << ch << ") for audio processing...");
                             if (m_fmt == VST3) {
-                                runOnMsgThreadSync(
-                                    [&] { p->prepareToPlay(m_chain.getSampleRate(), m_chain.getBlockSize()); });
+                                runOnMsgThreadSync([&] { p->prepareToPlay(effSampleRate, effBlockSize); });
                             } else {
-                                p->prepareToPlay(m_chain.getSampleRate(), m_chain.getBlockSize());
+                                p->prepareToPlay(effSampleRate, effBlockSize);
                             }
                             p->suspendProcessing(false);
                         }
@@ -816,6 +828,145 @@ void Processor::updateLatencyBuffers(int newLatency) {
         }
     }
 }
+
+template <>
+std::vector<Processor::OversamplingSlot<float>>& Processor::getOversamplingStages<float>() {
+    return m_oversamplingF;
+}
+
+template <>
+std::vector<Processor::OversamplingSlot<double>>& Processor::getOversamplingStages<double>() {
+    return m_oversamplingD;
+}
+
+void Processor::resetOversamplingStages() {
+    traceScope();
+    std::lock_guard<std::mutex> lock(m_oversamplingMtx);
+    m_oversamplingF.clear();
+    m_oversamplingD.clear();
+}
+
+void Processor::setOversamplingFactor(int factor) {
+    traceScope();
+    if (factor != 1 && factor != 2 && factor != 4) {
+        factor = 1;
+    }
+    if (factor == m_oversamplingFactor.load()) {
+        return;
+    }
+    logln("setting oversampling factor for '" << getName() << "' to " << factor << "x");
+
+    if (factor > 1) {
+        // determine the extra latency this will add and make it known immediately, so the chain can report the
+        // correct PDC to the host without waiting for the next audio block to lazily build the real stages
+        int stages = factor >= 4 ? 2 : 1;
+        dsp::Oversampling<float> probe((size_t)1, (size_t)stages,
+                                       dsp::Oversampling<float>::filterHalfBandFIREquiripple, true, false);
+        m_oversamplingLatencySamples = (int)std::round(probe.getLatencyInSamples());
+    } else {
+        m_oversamplingLatencySamples = 0;
+    }
+
+    // The wrapped plugin has to be told that it is now effectively running at sampleRate*factor with
+    // blockSize*factor samples per block (that's what it will actually receive once we upsample the incoming
+    // audio), otherwise anything time/frequency dependent inside the plugin (filters, delays, LFOs, etc.) breaks.
+    // We do this the same way the codebase already reconfigures a live plugin around a bypass toggle: suspend,
+    // release, update the factor, re-prepare at the new effective rate/block size, then resume.
+    if (!m_isClient && isLoaded() && m_prepared) {
+        ChannelSet cs;
+        {
+            std::lock_guard<std::mutex> lock(m_monoChannelsMtx);
+            cs = m_monoChannels;
+        }
+        for (int ch = 0; ch < m_channels; ch++) {
+            if (m_channels == 1 || cs.isOutputActive(ch)) {
+                if (auto p = getPlugin(ch)) {
+                    p->suspendProcessing(true);
+                    if (m_fmt == VST3) {
+                        runOnMsgThreadSync([&] { p->releaseResources(); });
+                    } else {
+                        p->releaseResources();
+                    }
+                }
+            }
+        }
+
+        resetOversamplingStages();
+        m_oversamplingFactor = factor;
+
+        double effSampleRate = getEffectiveSampleRate();
+        int effBlockSize = getEffectiveBlockSize();
+        for (int ch = 0; ch < m_channels; ch++) {
+            if (m_channels == 1 || cs.isOutputActive(ch)) {
+                if (auto p = getPlugin(ch)) {
+                    logln("re-preparing '" << getName() << "' (channel=" << ch << ") for " << factor
+                                           << "x oversampling...");
+                    if (m_fmt == VST3) {
+                        runOnMsgThreadSync([&] { p->prepareToPlay(effSampleRate, effBlockSize); });
+                    } else {
+                        p->prepareToPlay(effSampleRate, effBlockSize);
+                    }
+                    p->suspendProcessing(false);
+                }
+            }
+        }
+    } else {
+        // Not loaded/prepared yet (or sandboxed per-plugin client, which is out of scope for oversampling) - just
+        // remember the desired factor, it will be applied the next time prepareToPlay runs.
+        resetOversamplingStages();
+        m_oversamplingFactor = factor;
+    }
+}
+
+template <typename T>
+int Processor::runWithOversampling(int ch, AudioBuffer<T>& buffer, MidiBuffer& midiMessages,
+                                   const std::function<void(AudioBuffer<T>&, MidiBuffer&)>& processFn) {
+    int factor = m_oversamplingFactor.load();
+    if (factor <= 1) {
+        processFn(buffer, midiMessages);
+        return 0;
+    }
+
+    int stages = factor >= 4 ? 2 : 1;
+    auto& slots = getOversamplingStages<T>();
+    int numChannels = buffer.getNumChannels();
+
+    {
+        std::lock_guard<std::mutex> lock(m_oversamplingMtx);
+        if ((size_t)ch >= slots.size()) {
+            slots.resize((size_t)ch + 1);
+        }
+        auto& slot = slots[(size_t)ch];
+        if (!slot.os || slot.builtFactor != factor || slot.builtChannels != numChannels) {
+            slot.os = std::make_unique<dsp::Oversampling<T>>((size_t)jmax(1, numChannels), (size_t)stages,
+                                                              dsp::Oversampling<T>::filterHalfBandFIREquiripple, true,
+                                                              false);
+            slot.os->initProcessing((size_t)jmax(1, m_blockSize));
+            slot.os->reset();
+            slot.chanPtrs.resize((size_t)jmax(1, numChannels));
+            slot.builtFactor = factor;
+            slot.builtChannels = numChannels;
+        }
+    }
+
+    auto& slot = slots[(size_t)ch];
+    dsp::AudioBlock<T> block(buffer);
+    auto osBlock = slot.os->processSamplesUp(block);
+    int osChannels = (int)osBlock.getNumChannels();
+    int osSamples = (int)osBlock.getNumSamples();
+    for (int c = 0; c < osChannels; c++) {
+        slot.chanPtrs[(size_t)c] = osBlock.getChannelPointer((size_t)c);
+    }
+    AudioBuffer<T> osBuffer(slot.chanPtrs.data(), osChannels, osSamples);
+    processFn(osBuffer, midiMessages);
+    slot.os->processSamplesDown(block);
+    return (int)std::round(slot.os->getLatencyInSamples());
+}
+
+template int Processor::runWithOversampling<float>(int, AudioBuffer<float>&, MidiBuffer&,
+                                                    const std::function<void(AudioBuffer<float>&, MidiBuffer&)>&);
+template int Processor::runWithOversampling<double>(int, AudioBuffer<double>&, MidiBuffer&,
+                                                     const std::function<void(AudioBuffer<double>&, MidiBuffer&)>&);
 
 void Processor::enableAllBuses() {
     traceScope();
@@ -1020,7 +1171,7 @@ int Processor::getLatencySamples() {
         callBackendWithReturn(getLatencySamples);
         return 0;
     };
-    return getLatency();
+    return getLatency() + m_oversamplingLatencySamples.load();
 }
 
 void Processor::setExtraChannels(int in, int out) {

@@ -208,6 +208,7 @@ class Client : public Thread, public LogTag, public MouseListener, public KeyLis
     void setPluginSettings(int idx, String settings);
     void bypassPlugin(int idx);
     void unbypassPlugin(int idx);
+    void setPluginOversampling(int idx, int factor);
     void exchangePlugins(int idxA, int idxB);
     Array<ServerPlugin> getRecents();
     void setPreset(int idx, int channel, int preset);
@@ -297,6 +298,7 @@ class Client : public Thread, public LogTag, public MouseListener, public KeyLis
         SETPLUGINSETTINGS,
         BYPASSPLUGIN,
         UNBYPASSPLUGIN,
+        SETPLUGINOVERSAMPLING,
         EXCHANGEPLUGINS,
         GETRECENTS,
         SETPRESET,

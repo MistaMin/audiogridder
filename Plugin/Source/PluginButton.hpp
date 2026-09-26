@@ -17,7 +17,7 @@ class PluginButton : public TextButton {
     PluginButton(const String& id, const String& name, bool extraButtons = true);
     virtual ~PluginButton() override {}
 
-    enum AreaType { MAIN, BYPASS, MOVE_DOWN, MOVE_UP, DELETE };
+    enum AreaType { MAIN, BYPASS, OVERSAMPLING, MOVE_DOWN, MOVE_UP, DELETE };
 
     class Listener {
       public:
@@ -27,6 +27,8 @@ class PluginButton : public TextButton {
 
     void setOnClickWithModListener(Listener* p) { m_listener = p; }
     void setActive(bool b) { m_active = b; }
+    void setOversamplingFactor(int f) { m_oversamplingFactor = f; }
+    int getOversamplingFactor() const { return m_oversamplingFactor; }
 
     const String& getPluginId() const { return m_id; }
 
@@ -55,7 +57,8 @@ class PluginButton : public TextButton {
     bool m_enabled = true;
     String m_id;
     bool m_withExtraButtons = true;
-    Rectangle<int> m_bypassArea, m_moveUpArea, m_moveDownArea, m_deleteArea;
+    int m_oversamplingFactor = 1;
+    Rectangle<int> m_bypassArea, m_oversamplingArea, m_moveUpArea, m_moveDownArea, m_deleteArea;
     Point<int> m_lastMousePosition;
 
     inline bool isWithinArea(const Rectangle<int>& area, const Point<int>& point) const {

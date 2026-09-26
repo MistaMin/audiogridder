@@ -170,6 +170,8 @@ ServerSettingsWindow::ServerSettingsWindow(App* app)
                 }
             }
             configWriteFile(Defaults::getConfigFileName(Defaults::ConfigServerStartup), {{"IDs", valid.toStdString()}});
+
+            srv2->saveConfig();
         }
 
         appCpy->hideServerSettings();

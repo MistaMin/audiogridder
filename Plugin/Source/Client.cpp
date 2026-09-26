@@ -750,6 +750,18 @@ void Client::unbypassPlugin(int idx) {
     msg.send(m_cmdOut.get());
 }
 
+void Client::setPluginOversampling(int idx, int factor) {
+    traceScope();
+    if (!isReadyLockFree()) {
+        return;
+    };
+    Message<SetPluginOversampling> msg(this);
+    DATA(msg)->idx = idx;
+    DATA(msg)->factor = factor;
+    LockByID lock(*this, SETPLUGINOVERSAMPLING);
+    msg.send(m_cmdOut.get());
+}
+
 void Client::exchangePlugins(int idxA, int idxB) {
     traceScope();
     if (!isReadyLockFree()) {

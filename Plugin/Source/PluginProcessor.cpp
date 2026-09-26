@@ -126,6 +126,10 @@ PluginProcessor::PluginProcessor(AudioProcessor::WrapperType wt)
                         logln("bypassing plugin " << idx);
                         m_client->bypassPlugin(idx);
                     }
+                    if (p.oversamplingFactor > 1) {
+                        logln("resending oversampling factor " << p.oversamplingFactor << "x for plugin " << idx);
+                        m_client->setPluginOversampling(idx, p.oversamplingFactor);
+                    }
                     for (size_t ch = 0; ch < p.params.size(); ch++) {
                         for (auto& param : p.params[ch]) {
                             if (param.automationSlot > -1) {
@@ -912,7 +916,7 @@ void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
 json PluginProcessor::getState(bool withActiveServer) {
     traceScope();
     json j;
-    j["version"] = 6;
+    j["version"] = 7;
     j["Mode"] = m_mode.toStdString();
 
     if (withActiveServer) {
@@ -1336,6 +1340,33 @@ void PluginProcessor::unbypassPlugin(int idx) {
     }
     if (updateServer) {
         m_client->unbypassPlugin(idx);
+    }
+}
+
+int PluginProcessor::getOversamplingFactor(int idx) {
+    traceScope();
+    std::lock_guard<std::mutex> lock(m_loadedPluginsSyncMtx);
+    if (idx > -1 && idx < (int)m_loadedPlugins.size()) {
+        return m_loadedPlugins[(size_t)idx].oversamplingFactor;
+    }
+    return 1;
+}
+
+void PluginProcessor::setPluginOversampling(int idx, int factor) {
+    traceScope();
+    bool updateServer = false;
+    {
+        std::lock_guard<std::mutex> lock(m_loadedPluginsSyncMtx);
+        if (idx > -1 && idx < (int)m_loadedPlugins.size()) {
+            logln("setting oversampling factor for plugin " << idx << " to " << factor << "x");
+            m_loadedPlugins[(size_t)idx].oversamplingFactor = factor;
+            updateServer = true;
+        } else {
+            logln("failed to set oversampling factor for plugin " << idx << ": out of range");
+        }
+    }
+    if (updateServer) {
+        m_client->setPluginOversampling(idx, factor);
     }
 }
 

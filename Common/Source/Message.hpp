@@ -818,6 +818,17 @@ class UnbypassPlugin : public NumberPayload {
     UnbypassPlugin() : NumberPayload(Type) {}
 };
 
+struct oversampling_t {
+    int idx;
+    int factor;
+};
+
+class SetPluginOversampling : public DataPayload<oversampling_t> {
+  public:
+    static constexpr int Type = 75;
+    SetPluginOversampling() : DataPayload<oversampling_t>(Type) {}
+};
+
 struct exchange_t {
     int idxA;
     int idxB;

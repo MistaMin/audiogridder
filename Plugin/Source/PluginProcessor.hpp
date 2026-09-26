@@ -136,7 +136,8 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
             LAYOUT,
             MONO_CHANNELS,
             ACTIVE_CHANNEL,
-            PARAMSLIST
+            PARAMSLIST,
+            OVERSAMPLING_FACTOR
         };
         enum Indexes_v1 : uint8 { BYPASSED_V1 = 3 };
 
@@ -149,6 +150,7 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
         StringArray presets;
         Client::ParameterByChannelList params;
         bool bypassed = false;
+        int oversamplingFactor = 1;
         String id;
 
         bool hasEditor = true;
@@ -184,7 +186,8 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
                     layout.toStdString(),
                     monoChannels.toInt(),
                     activeChannel,
-                    jparams};
+                    jparams,
+                    oversamplingFactor};
         }
 
         LoadedPlugin() {}
@@ -230,6 +233,9 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
                         }
                     }
                 }
+                if (version >= 7) {
+                    oversamplingFactor = j[OVERSAMPLING_FACTOR].get<int>();
+                }
             } catch (const json::exception& e) {
                 setLogTagStatic("loadedplugin");
                 logln("failed to deserialize loaded plugin: " << e.what());
@@ -239,7 +245,7 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
         LoadedPlugin(const String& id_, const String& idDeprecated_, const String& name_, const String& layout_,
                      const ChannelSet& monoChannels_, int activeChannel_, const String& settings_,
                      const StringArray& presets_, const Client::ParameterByChannelList& params_, bool bypassed_,
-                     bool hasEditor_, bool ok_, const String& error_)
+                     bool hasEditor_, bool ok_, const String& error_, int oversamplingFactor_ = 1)
             : idDeprecated(idDeprecated_),
               name(name_),
               layout(layout_),
@@ -249,6 +255,7 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
               presets(presets_),
               params(params_),
               bypassed(bypassed_),
+              oversamplingFactor(oversamplingFactor_),
               id(id_),
               hasEditor(hasEditor_),
               ok(ok_),
@@ -301,6 +308,8 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
     bool isBypassed(int idx);
     void bypassPlugin(int idx);
     void unbypassPlugin(int idx);
+    int getOversamplingFactor(int idx);
+    void setPluginOversampling(int idx, int factor);
     void exchangePlugins(int idxA, int idxB);
     bool enableParamAutomation(int idx, int channel, int paramIdx, int slot = -1);
     void disableParamAutomation(int idx, int channel, int paramIdx);

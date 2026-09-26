@@ -68,6 +68,7 @@ target_link_libraries(AudioGridderServer PRIVATE
   juce::juce_audio_basics
   juce::juce_audio_processors
   juce::juce_audio_formats
+  juce::juce_dsp
   juce::juce_graphics
   juce::juce_gui_extra
   juce::juce_recommended_config_flags
