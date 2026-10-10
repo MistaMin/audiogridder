@@ -14,6 +14,10 @@
 
 #include "Logger.hpp"
 
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+
 #ifndef JUCE_WINDOWS
 #include <sys/resource.h>
 #endif

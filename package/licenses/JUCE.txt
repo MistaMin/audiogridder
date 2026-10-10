@@ -1,0 +1,15 @@
+JUCE Framework Notice
+=====================
+
+This software uses the JUCE framework (https://juce.com).
+
+JUCE is Copyright (c) Raw Material Software Limited.
+
+The JUCE framework is used in this distribution under the terms of a
+commercial JUCE license held by the distributor of this software. As such,
+the JUCE source code is NOT licensed to you under the GNU General Public
+License, and no JUCE source code disclosure obligations apply to this
+binary distribution.
+
+For details on JUCE licensing, see https://juce.com/legal/ and
+https://juce.com/get-juce/.

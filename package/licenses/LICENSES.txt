@@ -1,0 +1,50 @@
+AudioGridder 1.2.1 - Licenses and Third-Party Notices
+======================================================
+
+AudioGridder
+------------
+AudioGridder is licensed under the MIT License.
+Copyright (c) 2020-2023 Andreas Pohl
+https://github.com/apohl79/audiogridder
+
+See: AudioGridder-MIT.txt
+
+
+JUCE Framework
+--------------
+This software uses the JUCE framework (https://juce.com).
+JUCE is Copyright (c) Raw Material Software Limited and is used in this
+distribution under a commercial JUCE license held by the distributor of
+this software. No JUCE source code disclosure obligations apply to this
+binary distribution.
+
+See: JUCE.txt
+
+
+FFmpeg
+------
+This software uses libraries from the FFmpeg project (version 6.0) under
+the GNU Lesser General Public License (LGPL) version 2.1 or later.
+FFmpeg source code: https://github.com/FFmpeg/FFmpeg (tag n6.0)
+FFmpeg website: https://ffmpeg.org
+
+See: FFmpeg-LGPL-2.1.txt
+
+
+libwebp
+-------
+This software uses libwebp, the WebP image codec library.
+Copyright (c) 2010, Google Inc. All rights reserved.
+libwebp is licensed under the BSD 3-Clause License.
+https://chromium.googlesource.com/webm/libwebp
+
+See: libwebp-BSD.txt
+
+
+Boost
+-----
+This software uses the Boost C++ Libraries (version 1.83.0).
+Boost is licensed under the Boost Software License 1.0.
+https://www.boost.org
+
+See: Boost-1.0.txt

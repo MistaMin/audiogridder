@@ -79,6 +79,13 @@ endif()
 
 find_package(FFmpeg REQUIRED)
 find_package(WebP REQUIRED)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT AG_ENABLE_DYNAMIC_LINKING)
+  # Static FFmpeg (vcpkg) requires these Windows system libraries
+  list(APPEND FFMPEG_LIBRARIES psapi.lib uuid.lib oleaut32.lib shlwapi.lib gdi32.lib vfw32.lib secur32.lib ws2_32.lib mfuuid.lib strmiids.lib ole32.lib user32.lib bcrypt.lib)
+  if(EXISTS "${AG_DEPS_ROOT}/lib/libsharpyuv.lib")
+    list(APPEND WEBP_LIBRARIES "${AG_DEPS_ROOT}/lib/libsharpyuv.lib")
+  endif()
+endif()
 if(AG_WITH_TRACEREADER)
   find_package(Boost 1.73.0 REQUIRED COMPONENTS program_options)
 else()

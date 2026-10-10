@@ -16,7 +16,7 @@ macro(WEBP_FIND varname shortname headername)
   if(AG_ENABLE_DYNAMIC_LINKING)
     set(LIB_NAMES lib${shortname}.dylib lib${shortname}.so ${shortname}.dll)
   else()
-    set(LIB_NAMES lib${shortname}.a ${shortname}.lib)
+    set(LIB_NAMES lib${shortname}.a ${shortname}.lib lib${shortname}.lib)
   endif()
 
   find_library(WEBP_${varname}_LIBRARIES
