@@ -1,4 +1,4 @@
-AudioGridder 1.2.1 - Licenses and Third-Party Notices
+AudioGridder 1.3.0 - Licenses and Third-Party Notices
 ======================================================
 
 AudioGridder
@@ -7,26 +7,45 @@ AudioGridder is licensed under the MIT License.
 Copyright (c) 2020-2023 Andreas Pohl
 https://github.com/apohl79/audiogridder
 
+This build is based on the fork at https://github.com/MistaMin/audiogridder,
+where its complete source code is available.
+
 See: AudioGridder-MIT.txt
 
 
 JUCE Framework
 --------------
-This software uses the JUCE framework (https://juce.com).
+This software uses the JUCE framework, version 9.0.4 (https://juce.com).
 JUCE is Copyright (c) Raw Material Software Limited and is used in this
-distribution under a commercial JUCE license held by the distributor of
+distribution under a commercial JUCE 9 licence held by the distributor of
 this software. No JUCE source code disclosure obligations apply to this
 binary distribution.
 
-See: JUCE.txt
+JUCE compiles a number of third-party components into this software
+(including zlib, HarfBuzz, libpng, FLAC, Ogg Vorbis, Opus, the VST3 SDK,
+the LV2 libraries and the AudioUnitSDK). Their versions and licences are
+listed in third-party/COMPONENTS.txt, and each licence text is in the
+third-party folder.
+
+See: JUCE.txt, third-party/
 
 
 FFmpeg
 ------
-This software uses libraries from the FFmpeg project (version 6.0) under
-the GNU Lesser General Public License (LGPL) version 2.1 or later.
-FFmpeg source code: https://github.com/FFmpeg/FFmpeg (tag n6.0)
+This software uses libraries from the FFmpeg project (libavcodec,
+libavformat, libavdevice, libavutil, libswscale) under the GNU Lesser General
+Public License (LGPL) version 2.1 or later. FFmpeg is built without GPL or
+non-free components.
+
+  macOS:   FFmpeg git snapshot N-104960-ga16e64435a
+  Windows: FFmpeg 6.0 (vcpkg)
+
+FFmpeg source code: https://github.com/FFmpeg/FFmpeg
 FFmpeg website: https://ffmpeg.org
+
+The FFmpeg libraries are statically linked. The complete source code of
+AudioGridder (see above) and of FFmpeg is available, so the software can be
+rebuilt and relinked against a modified version of FFmpeg.
 
 See: FFmpeg-LGPL-2.1.txt
 
@@ -36,6 +55,10 @@ libwebp
 This software uses libwebp, the WebP image codec library.
 Copyright (c) 2010, Google Inc. All rights reserved.
 libwebp is licensed under the BSD 3-Clause License.
+
+  macOS:   libwebp 1.2.1
+  Windows: libwebp 1.3.2 or later (vcpkg)
+
 https://chromium.googlesource.com/webm/libwebp
 
 See: libwebp-BSD.txt
@@ -43,8 +66,12 @@ See: libwebp-BSD.txt
 
 Boost
 -----
-This software uses the Boost C++ Libraries (version 1.83.0).
+This software uses the Boost C++ Libraries.
 Boost is licensed under the Boost Software License 1.0.
+
+  macOS:   Boost 1.73.0
+  Windows: Boost 1.83.0 (vcpkg)
+
 https://www.boost.org
 
 See: Boost-1.0.txt

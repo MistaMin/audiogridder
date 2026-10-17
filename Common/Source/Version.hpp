@@ -8,10 +8,10 @@
 #ifndef Version_hpp
 #define Version_hpp
 
-#define AUDIOGRIDDER_VERSION "marcosfork-1.2.1"
-#define AUDIOGRIDDER_VERSIONW L"marcosfork-1.2.1"
-#define AUDIOGRIDDER_VERSION_NUM "1.2.1"
-#define AUDIOGRIDDER_VERSION_NUMW L"1.2.1"
-#define AUDIOGRIDDER_BUILD_DATE "Mon Sep  7 08:20:19 CEST 2026"
+#define AUDIOGRIDDER_VERSION "marcosfork-1.3.0"
+#define AUDIOGRIDDER_VERSIONW L"marcosfork-1.3.0"
+#define AUDIOGRIDDER_VERSION_NUM "1.3.0"
+#define AUDIOGRIDDER_VERSION_NUMW L"1.3.0"
+#define AUDIOGRIDDER_BUILD_DATE "Sat Oct 17 21:45:50 CEST 2026"
 
 #endif /* Version_hpp */

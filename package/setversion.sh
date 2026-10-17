@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DEFAULT_VERSION="1.2.0"
+DEFAULT_VERSION="1.3.0"
 DEFAULT_VERSION_STR="dev-build"
 
 if [ "$1" = "-h" ]; then
