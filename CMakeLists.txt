@@ -94,8 +94,12 @@ endif()
 
 add_subdirectory(JUCE)
 
-if(AG_SDKS_ROOT AND AG_VST2_PLUGIN_ENABLED)
+set(AG_VST2_SDK_FOUND OFF)
+if(AG_SDKS_ROOT AND EXISTS "${AG_VST2_SDK}/pluginterfaces/vst2.x/aeffect.h")
+  set(AG_VST2_SDK_FOUND ON)
   juce_set_vst2_sdk_path(${AG_VST2_SDK})
+elseif(AG_VST2_PLUGIN_ENABLED)
+  message(FATAL_ERROR "AG_VST2_PLUGIN_ENABLED is set but no VST2 SDK was found at ${AG_VST2_SDK}")
 endif()
 
 if(AG_AAX_PLUGIN_ENABLED)
@@ -114,6 +118,7 @@ link_directories(${FFMPEG_LIBRARY_DIRS})
 link_directories(${WEBP_LIBRARY_DIRS})
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Common/Source AG_SOURCES_COMMON)
+list(FILTER AG_SOURCES_COMMON EXCLUDE REGEX "/\\._[^/]*$")  # skip macOS AppleDouble files
 list(REMOVE_ITEM AG_SOURCES_COMMON "${CMAKE_CURRENT_SOURCE_DIR}/Common/Source/TraceReader.cpp")
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")

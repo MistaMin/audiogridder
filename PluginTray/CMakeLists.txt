@@ -22,6 +22,7 @@ juce_add_gui_app(AudioGridderPluginTray
 juce_generate_juce_header(AudioGridderPluginTray)
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Source AG_SOURCES_PLUGIN_TRAY)
+list(FILTER AG_SOURCES_PLUGIN_TRAY EXCLUDE REGEX "/\\._[^/]*$")  # skip macOS AppleDouble files
 
 target_sources(AudioGridderPluginTray PRIVATE ${AG_SOURCES_PLUGIN_TRAY} ${AG_SOURCES_COMMON})
 

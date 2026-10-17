@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 project(AUDIOGRIDDER_PLUGIN VERSION 1.0.0)
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Source AG_SOURCES_PLUGIN)
+list(FILTER AG_SOURCES_PLUGIN EXCLUDE REGEX "/\\._[^/]*$")  # skip macOS AppleDouble files
 
 macro(ag_add_plugin type)
   cmake_parse_arguments(AG "" "PLUGIN_CODE;IS_SYNTH;IS_MIDI_EFFECT;VST3_CATEGORY;VST_CATEGORY;AAX_CATEGORY;AU_TYPE" "" ${ARGN})

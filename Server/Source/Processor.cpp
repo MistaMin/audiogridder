@@ -310,7 +310,7 @@ std::shared_ptr<AudioPluginInstance> Processor::loadPlugin(const PluginDescripti
     traceScope();
     String err2;
     AudioPluginFormatManager plugmgr;
-    plugmgr.addDefaultFormats();
+    addDefaultFormatsToManager(plugmgr);
 #if JUCE_PLUGINHOST_LV2
     if (plugdesc.pluginFormatName == "LV2") {
         AudioPluginFormat* fmt = new LV2PluginFormat();

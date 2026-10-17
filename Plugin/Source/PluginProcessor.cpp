@@ -1824,7 +1824,7 @@ void PluginProcessor::TrayConnection::sendStatus() {
 
     json j;
     j["connected"] = isClientReady;
-    j["name"] = track.name.toStdString();
+    j["name"] = track.name.value_or(String()).toStdString();
     j["channelsIn"] = m_processor->getMainBusNumInputChannels();
     j["channelsOut"] = m_processor->getTotalNumOutputChannels();
     j["channelsSC"] = m_processor->getBusCount(true) > 0 ? m_processor->getChannelCountOfBus(true, 1) : 0;
@@ -1833,7 +1833,7 @@ void PluginProcessor::TrayConnection::sendStatus() {
 #else
     j["instrument"] = false;
 #endif
-    j["colour"] = track.colour.getARGB();
+    j["colour"] = track.colourARGB.value_or(0);
     j["loadedPlugins"] = client.getLoadedPluginsString().toStdString();
     j["loadedPluginsOk"] = m_processor->m_loadedPluginsOk.load();
     j["perfStream"] = tsStream->getMostRecentAverage();

@@ -21,7 +21,7 @@ PluginListWindow::PluginListWindow(App* app, KnownPluginList& list, const String
       m_deadMansPedalFile(deadMansPedalFile) {
     if (auto srv = m_app->getServer()) {
         setUsingNativeTitleBar(true);
-        m_plugmgr.addDefaultFormats();
+        addDefaultFormatsToManager(m_plugmgr);
         setContentOwned(new PluginListComponent(m_plugmgr, m_pluginlist, srv->getExcludeList(), m_deadMansPedalFile),
                         true);
 

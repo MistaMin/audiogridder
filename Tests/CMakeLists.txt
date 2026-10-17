@@ -3,9 +3,13 @@ cmake_minimum_required(VERSION 3.15)
 project(AUDIOGRIDDER_TESTS VERSION 1.0.0)
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Source AG_SOURCES_TESTS)
+list(FILTER AG_SOURCES_TESTS EXCLUDE REGEX "/\\._[^/]*$")  # skip macOS AppleDouble files
 aux_source_directory(${CMAKE_SOURCE_DIR}/Common/Source AG_SOURCES_COMMON)
+list(FILTER AG_SOURCES_COMMON EXCLUDE REGEX "/\\._[^/]*$")  # skip macOS AppleDouble files
 aux_source_directory(${CMAKE_SOURCE_DIR}/Server/Source AG_SOURCES_SERVER)
+list(FILTER AG_SOURCES_SERVER EXCLUDE REGEX "/\\._[^/]*$")  # skip macOS AppleDouble files
 aux_source_directory(${CMAKE_SOURCE_DIR}/Plugin/Source AG_SOURCES_PLUGIN)
+list(FILTER AG_SOURCES_PLUGIN EXCLUDE REGEX "/\\._[^/]*$")  # skip macOS AppleDouble files
 list(REMOVE_ITEM AG_SOURCES_COMMON "${CMAKE_SOURCE_DIR}/Common/Source/TraceReader.cpp")
 
 include_directories(${CMAKE_SOURCE_DIR})

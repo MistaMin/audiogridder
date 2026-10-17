@@ -178,11 +178,12 @@ void PluginEditor::paint(Graphics& g) {
     FillType ft;
     auto colBG = getLookAndFeel().findColour(ResizableWindow::backgroundColourId);
     auto tp = m_processor.getTrackProperties();
-    if (!tp.colour.isTransparent()) {
-        auto gradient = ColourGradient::horizontal(colBG.interpolatedWith(tp.colour, 0.05f), 0, colBG, 100);
+    auto trackColour = Colour(tp.colourARGB.value_or(0));
+    if (!trackColour.isTransparent()) {
+        auto gradient = ColourGradient::horizontal(colBG.interpolatedWith(trackColour, 0.05f), 0, colBG, 100);
         g.setGradientFill(gradient);
         g.fillAll();
-        g.setColour(tp.colour);
+        g.setColour(trackColour);
         g.fillRect(0, 0, 2, getHeight());
     } else {
         g.fillAll(colBG);
