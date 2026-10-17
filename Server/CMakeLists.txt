@@ -16,6 +16,13 @@ juce_add_gui_app(AudioGridderServer
   COMPANY_COPYRIGHT "2020-2022 Andreas Pohl"
   COMPANY_WEBSITE "https://www.audiogridder.com"
   PLUGINHOST_AU TRUE
+  # macOS 15+ asks for local network access, the server announces itself via Bonjour (mDNS)
+  PLIST_TO_MERGE "<plist><dict>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>AudioGridder Server accepts connections from the AudioGridder plugin on other computers in your network.</string>
+    <key>NSBonjourServices</key>
+    <array><string>_audiogridder._tcp</string></array>
+  </dict></plist>"
   ICON_BIG "${AG_ICON_BIG}"
   ICON_SMALL "${AG_ICON_SMALL}")
 
@@ -55,8 +62,7 @@ target_compile_definitions(AudioGridderServer PRIVATE
   JUCE_DISABLE_AUDIOPROCESSOR_BEGIN_END_GESTURE_CHECKING
   JUCE_DISABLE_ASSERTIONS
   JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:AudioGridderServer,JUCE_PRODUCT_NAME>"
-  JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:AudioGridderServer,JUCE_VERSION>"
-  JUCE_DISPLAY_SPLASH_SCREEN=0)
+  JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:AudioGridderServer,JUCE_VERSION>")
 
 target_compile_features(AudioGridderServer PRIVATE cxx_std_14)
 

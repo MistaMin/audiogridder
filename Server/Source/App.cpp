@@ -776,7 +776,7 @@ void App::hideSplashWindow(int wait) {
     traceScope();
     auto ptrcpy = m_splashWindow;
     m_splashWindow.reset();
-    m_splashHider.fn = [this, ptrcpy, wait] {
+    m_splashHider.fn = [this, ptrcpy, wait]() mutable {
         Thread::sleep(wait);
         int step = 10;
         while (step-- > 0 && !Thread::currentThreadShouldExit()) {
@@ -784,7 +784,9 @@ void App::hideSplashWindow(int wait) {
             runOnMsgThreadAsync([ptrcpy, alpha] { ptrcpy->setAlpha(alpha); });
             Thread::sleep(40);
         }
-        runOnMsgThreadAsync([this, ptrcpy] {
+        // Hand the last reference to the message thread, the window must not be destroyed on this thread
+        runOnMsgThreadAsync([this, splash = std::move(ptrcpy)]() mutable {
+            splash.reset();
             if (!Thread::currentThreadShouldExit()) {
 #ifdef JUCE_LINUX
                 m_srvSettingsWindow = std::make_unique<ServerSettingsWindow>(this);
