@@ -64,12 +64,13 @@ the upstream version, not this fork.
 
 ## Windows
 
-There is no Windows build of 1.3.0 yet. The fork's Windows build of 1.2.1 is on
-the [releases page](https://github.com/MistaMin/audiogridder/releases/tag/win-only-1.2.1).
+AudioGridder 1.3.0 is available for Windows (`x64`) on the [1.3.0 release page](https://github.com/MistaMin/audiogridder/releases/tag/v1.3.0):
+- `AudioGridderServer_1.3.0.exe`: server installer.
+- `AudioGridderPlugin_1.3.0.exe`: plugin and tray installer.
 
 ## Linux
 
-The plugin can be built for Linux from source, see [DEVELOP.md](DEVELOP.md).
+Prebuilt `x86_64` binaries for AudioGridder 1.3.0 (`AudioGridder.vst3`, `AudioGridderInst.vst3`, `AudioGridderMidi.vst3`, `AudioGridderPluginTray`, and experimental `AudioGridderServer`) are available in [AudioGridder-1.3.0-linux-x86_64.tar.gz](https://github.com/MistaMin/audiogridder/releases/download/v1.3.0/AudioGridder-1.3.0-linux-x86_64.tar.gz) ([SHA-256](https://github.com/MistaMin/audiogridder/releases/download/v1.3.0/AudioGridder-1.3.0-linux-x86_64.sha256)). Extract and copy the `.vst3` bundles into `~/.vst3`. To build from source, see [DEVELOP.md](DEVELOP.md).
 
 # Features
 
