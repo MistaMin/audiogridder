@@ -178,7 +178,6 @@ void ImageReader::closeCodec() {
     }
 
     if (nullptr != m_inputCodecCtx) {
-        avcodec_close(m_inputCodecCtx);
         avcodec_free_context(&m_inputCodecCtx);
         m_inputCodecCtx = nullptr;
     }

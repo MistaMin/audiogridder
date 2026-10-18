@@ -135,7 +135,6 @@ void ScreenRecorder::cleanupInput() {
     }
 
     if (nullptr != m_captureCodecCtx) {
-        avcodec_close(m_captureCodecCtx);
         avcodec_free_context(&m_captureCodecCtx);
     }
 
@@ -167,7 +166,6 @@ void ScreenRecorder::cleanupOutput() {
     }
 
     if (nullptr != m_outputCodecCtx) {
-        avcodec_close(m_outputCodecCtx);
         avcodec_free_context(&m_outputCodecCtx);
     }
 
@@ -411,14 +409,11 @@ bool ScreenRecorder::prepareOutput() {
         return false;
     }
 
-    if (nullptr != m_outputCodecCtx && avcodec_is_open(m_outputCodecCtx)) {
-        avcodec_close(m_outputCodecCtx);
-    } else {
-        m_outputCodecCtx = avcodec_alloc_context3(m_outputCodec);
-        if (nullptr == m_outputCodecCtx) {
-            logError("prepareOutput: unable to allocate codec context");
-            return false;
-        }
+    avcodec_free_context(&m_outputCodecCtx);
+    m_outputCodecCtx = avcodec_alloc_context3(m_outputCodec);
+    if (nullptr == m_outputCodecCtx) {
+        logError("prepareOutput: unable to allocate codec context");
+        return false;
     }
 
     m_scaledWith = m_downScale ? (int)(m_captureRect.getWidth() / m_scale) : m_captureRect.getWidth();
