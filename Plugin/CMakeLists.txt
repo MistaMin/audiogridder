@@ -6,7 +6,8 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/Source AG_SOURCES_PLUGIN)
 list(FILTER AG_SOURCES_PLUGIN EXCLUDE REGEX "/\\._[^/]*$")  # skip macOS AppleDouble files
 
 macro(ag_add_plugin type)
-  cmake_parse_arguments(AG "" "PLUGIN_CODE;IS_SYNTH;IS_MIDI_EFFECT;VST3_CATEGORY;VST_CATEGORY;AAX_CATEGORY;AU_TYPE" "" ${ARGN})
+  cmake_parse_arguments(AG "" "PLUGIN_CODE;IS_SYNTH;IS_MIDI_EFFECT;VST3_CATEGORY;VST_CATEGORY;AAX_CATEGORY;AU_TYPE" "CLAP_FEATURES" ${ARGN})
+  string(TOLOWER "${type}" type_LC_ID)
 
   set(pluginname "AGridder")
   set(productname "AudioGridder")
@@ -24,6 +25,10 @@ macro(ag_add_plugin type)
 
   if(AG_AAX_PLUGIN_ENABLED)
     list(APPEND AG_FORMATS AAX)
+  endif()
+
+  if(AG_LV2_PLUGIN_ENABLED)
+    list(APPEND AG_FORMATS LV2)
   endif()
 
   juce_add_plugin(AudioGridder${type}
@@ -100,6 +105,24 @@ macro(ag_add_plugin type)
 
   ag_strip(AudioGridder${type}_VST3 VST3)
 
+  if(AG_LV2_PLUGIN_ENABLED)
+    # Each LV2 needs its own bundle folder, otherwise the manifests of the three plugins overwrite each other
+    set(AG_LV2_BUNDLE_DIR ${CMAKE_BINARY_DIR}/lib/${productname}.lv2)
+    set_target_properties(AudioGridder${type}_LV2 PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${AG_LV2_BUNDLE_DIR}
+      LIBRARY_OUTPUT_DIRECTORY_DEBUG ${AG_LV2_BUNDLE_DIR}
+      LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${AG_LV2_BUNDLE_DIR}
+      LIBRARY_OUTPUT_DIRECTORY_RELEASE ${AG_LV2_BUNDLE_DIR})
+    ag_strip(AudioGridder${type}_LV2 LV2)
+  endif()
+
+  if(AG_CLAP_PLUGIN_ENABLED)
+    # Builds the ${type} CLAP target, AudioGridder${type}_CLAP, next to the other formats
+    clap_juce_extensions_plugin(TARGET AudioGridder${type}
+      CLAP_ID "com.e47.audiogridder.${type_LC_ID}"
+      CLAP_FEATURES ${AG_CLAP_FEATURES})
+  endif()
+
   if(AG_AAX_PLUGIN_ENABLED)
     ag_strip(AudioGridder${type}_AAX AAX)
     ag_bundle_sign_aax(AudioGridder${type}_AAX)
@@ -166,7 +189,8 @@ ag_add_plugin(Fx
   VST3_CATEGORY Fx
   VST_CATEGORY kPlugCategEffect
   AAX_CATEGORY AAX_EPlugInCategory_Effect
-  AU_TYPE kAudioUnitType_Effect)
+  AU_TYPE kAudioUnitType_Effect
+  CLAP_FEATURES audio-effect)
 
 ag_add_plugin(Inst
   PLUGIN_CODE E402
@@ -175,7 +199,8 @@ ag_add_plugin(Inst
   VST3_CATEGORY Instrument
   VST_CATEGORY kPlugCategSynth
   AAX_CATEGORY AAX_ePlugInCategory_SWGenerators
-  AU_TYPE kAudioUnitType_MusicDevice)
+  AU_TYPE kAudioUnitType_MusicDevice
+  CLAP_FEATURES instrument)
 
 ag_add_plugin(Midi
   PLUGIN_CODE E403
@@ -184,4 +209,5 @@ ag_add_plugin(Midi
   VST3_CATEGORY Fx
   VST_CATEGORY kPlugCategEffect
   AAX_CATEGORY AAX_ePlugInCategory_None
-  AU_TYPE kAudioUnitType_MIDIProcessor)
+  AU_TYPE kAudioUnitType_MIDIProcessor
+  CLAP_FEATURES note-effect)

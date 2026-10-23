@@ -21,6 +21,7 @@ set -e
 AG_SIGN_APP=${AG_SIGN_APP:-"Developer ID Application: Marcos Deida (ZQYU67JUBH)"}
 AG_SIGN_INSTALLER=${AG_SIGN_INSTALLER:-"Developer ID Installer: Marcos Deida (ZQYU67JUBH)"}
 AG_NOTARY_PROFILE=${AG_NOTARY_PROFILE:-AC_NOTARY}
+AG_WRAPTOOL=${AG_WRAPTOOL:-/Applications/PACEAntiPiracy/Eden/Fusion/bin/wraptool}
 
 NOTARIZE=1
 ARGS=()
@@ -55,7 +56,17 @@ GUIDE="$ROOT/package/docs/AudioGridder-macOS-Permissions.pdf"
 
 SERVER_BUNDLES="bin/AudioGridderServer.app"
 PLUGIN_BUNDLES="bin/AudioGridderPluginTray.app lib/AudioGridder.component lib/AudioGridderInst.component
-                lib/AudioGridderMidi.component lib/AudioGridder.vst3 lib/AudioGridderInst.vst3 lib/AudioGridderMidi.vst3"
+                lib/AudioGridderMidi.component lib/AudioGridder.vst3 lib/AudioGridderInst.vst3 lib/AudioGridderMidi.vst3
+                lib/AudioGridder.clap lib/AudioGridderInst.clap lib/AudioGridderMidi.clap"
+# LV2 bundles are plain folders, not app bundles, so codesign rejects them. Their binaries are signed instead.
+LV2_BUNDLES="lib/AudioGridder.lv2 lib/AudioGridderInst.lv2 lib/AudioGridderMidi.lv2"
+AAX_BUNDLES="lib/AudioGridder.aaxplugin lib/AudioGridderInst.aaxplugin lib/AudioGridderMidi.aaxplugin"
+# AAX bundles already signed by PACE wraptool (see DEVELOP.md). They are copied as they are and are not re-signed.
+AG_AAX_SIGNED_DIR=${AG_AAX_SIGNED_DIR:-}
+if [ -z "$AG_AAX_SIGNED_DIR" ]; then
+    echo "error: set AG_AAX_SIGNED_DIR to the folder with the PACE-signed AAX bundles (see DEVELOP.md)" >&2
+    exit 1
+fi
 
 for b in $SERVER_BUNDLES $PLUGIN_BUNDLES; do
     if [ ! -d "$BUILD/$b" ]; then
@@ -86,8 +97,15 @@ trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/stage/bin" "$WORK/stage/lib" "$WORK/pkgs" "$WORK/docs" "$WORK/resources"
 
 echo "==> staging bundles"
-for b in $SERVER_BUNDLES $PLUGIN_BUNDLES; do
+for b in $SERVER_BUNDLES $PLUGIN_BUNDLES $LV2_BUNDLES; do
     ditto --norsrc --noextattr --noqtn "$BUILD/$b" "$WORK/stage/$b"
+done
+for b in $AAX_BUNDLES; do
+    if [ ! -d "$AG_AAX_SIGNED_DIR/$(basename "$b")" ]; then
+        echo "error: $AG_AAX_SIGNED_DIR/$(basename "$b") not found, sign the AAX bundles with PACE first" >&2
+        exit 1
+    fi
+    ditto --norsrc --noextattr --noqtn "$AG_AAX_SIGNED_DIR/$(basename "$b")" "$WORK/stage/$b"
 done
 find "$WORK/stage" -name "._*" -delete
 normalize_modes "$WORK/stage"
@@ -96,11 +114,16 @@ echo "==> signing bundles with: $AG_SIGN_APP"
 for b in $PLUGIN_BUNDLES; do
     codesign --force --timestamp --options runtime --sign "$AG_SIGN_APP" "$WORK/stage/$b"
 done
+for b in $LV2_BUNDLES; do
+    for so in "$WORK/stage/$b"/*.so; do
+        codesign --force --timestamp --options runtime --sign "$AG_SIGN_APP" "$so"
+    done
+done
 codesign --force --timestamp --options runtime --entitlements "$ENTITLEMENTS" --sign "$AG_SIGN_APP" \
     "$WORK/stage/bin/AudioGridderServer.app"
 
 echo "==> verifying signatures"
-for b in $SERVER_BUNDLES $PLUGIN_BUNDLES; do
+for b in $SERVER_BUNDLES $PLUGIN_BUNDLES $AAX_BUNDLES; do
     codesign --verify --strict --deep "$WORK/stage/$b"
     info=$(codesign -dvv "$WORK/stage/$b" 2>&1)
     if ! echo "$info" | grep -qF "Authority=$AG_SIGN_APP" || ! echo "$info" | grep -q "^Timestamp="; then
@@ -109,6 +132,18 @@ for b in $SERVER_BUNDLES $PLUGIN_BUNDLES; do
         exit 1
     fi
     echo "   ok  $b"
+done
+
+echo "==> verifying LV2 binaries"
+for b in $LV2_BUNDLES; do
+    for so in "$WORK/stage/$b"/*.so; do
+        info=$(codesign -dvv "$so" 2>&1)
+        if ! echo "$info" | grep -qF "Authority=$AG_SIGN_APP" || ! echo "$info" | grep -q "^Timestamp="; then
+            echo "error: $so is not signed with a Developer ID and a secure timestamp" >&2
+            exit 1
+        fi
+        echo "   ok  $(basename "$so")"
+    done
 done
 
 echo "==> collecting documentation"
@@ -143,6 +178,25 @@ pkgc com.e47.audiogridder.au.midi "$WORK/stage/lib/AudioGridderMidi.component" $
 pkgc com.e47.audiogridder.vst3 "$WORK/stage/lib/AudioGridder.vst3" $V3 vst3-fx.pkg
 pkgc com.e47.audiogridder.vst3.inst "$WORK/stage/lib/AudioGridderInst.vst3" $V3 vst3-inst.pkg
 pkgc com.e47.audiogridder.vst3.midi "$WORK/stage/lib/AudioGridderMidi.vst3" $V3 vst3-midi.pkg
+LV2=/Library/Audio/Plug-Ins/LV2
+CLAP=/Library/Audio/Plug-Ins/CLAP
+AAXDIR="/Library/Application Support/Avid/Audio/Plug-Ins"
+# LV2 bundles are plain folders, so they are packaged from a root folder rather than as components
+lv2pkg() {
+    mkdir -p "$WORK/lv2root/$2"
+    ditto --norsrc --noextattr "$WORK/stage/lib/$1" "$WORK/lv2root/$2/$1"
+    pkgbuild --root "$WORK/lv2root/$2" --install-location $LV2 --version "$VER" --identifier "$3" \
+        "$WORK/pkgs/$4" >/dev/null
+}
+lv2pkg AudioGridder.lv2 fx com.e47.audiogridder.lv2 lv2-fx.pkg
+lv2pkg AudioGridderInst.lv2 inst com.e47.audiogridder.lv2.inst lv2-inst.pkg
+lv2pkg AudioGridderMidi.lv2 midi com.e47.audiogridder.lv2.midi lv2-midi.pkg
+pkgc com.e47.audiogridder.clap "$WORK/stage/lib/AudioGridder.clap" $CLAP clap-fx.pkg
+pkgc com.e47.audiogridder.clap.inst "$WORK/stage/lib/AudioGridderInst.clap" $CLAP clap-inst.pkg
+pkgc com.e47.audiogridder.clap.midi "$WORK/stage/lib/AudioGridderMidi.clap" $CLAP clap-midi.pkg
+pkgc com.e47.audiogridder.aax "$WORK/stage/lib/AudioGridder.aaxplugin" "$AAXDIR" aax-fx.pkg
+pkgc com.e47.audiogridder.aax.inst "$WORK/stage/lib/AudioGridderInst.aaxplugin" "$AAXDIR" aax-inst.pkg
+pkgc com.e47.audiogridder.aax.midi "$WORK/stage/lib/AudioGridderMidi.aaxplugin" "$AAXDIR" aax-midi.pkg
 pkgbuild --root "$WORK/docs" --install-location /Library/Documentation/AudioGridder --version "$VER" \
     --identifier com.e47.audiogridder.docs "$WORK/pkgs/docs.pkg" >/dev/null
 
@@ -180,6 +234,9 @@ E=com.e47.audiogridder
 distribution "AudioGridder Server $VER" $E.server:server.pkg $E.docs:docs.pkg > "$WORK/server.dist"
 distribution "AudioGridder Plugin $VER" $E.plugintray:tray.pkg $E.au:au-fx.pkg $E.au.inst:au-inst.pkg \
     $E.au.midi:au-midi.pkg $E.vst3:vst3-fx.pkg $E.vst3.inst:vst3-inst.pkg $E.vst3.midi:vst3-midi.pkg \
+    $E.lv2:lv2-fx.pkg $E.lv2.inst:lv2-inst.pkg $E.lv2.midi:lv2-midi.pkg \
+    $E.clap:clap-fx.pkg $E.clap.inst:clap-inst.pkg $E.clap.midi:clap-midi.pkg \
+    $E.aax:aax-fx.pkg $E.aax.inst:aax-inst.pkg $E.aax.midi:aax-midi.pkg \
     $E.docs:docs.pkg > "$WORK/plugin.dist"
 productbuild --distribution "$WORK/server.dist" --package-path "$WORK/pkgs" --resources "$WORK/resources" \
     "$WORK/server-unsigned.pkg" >/dev/null

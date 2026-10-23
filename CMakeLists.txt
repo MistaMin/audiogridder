@@ -16,6 +16,8 @@ option(AG_ENABLE_SENTRY "Enable crash reporting via sentry." off)
 option(AG_ENABLE_ASAN "Enable AddressSanitizer." off)
 option(AG_VST2_PLUGIN_ENABLED "Enable the VST2 plugins." off)
 option(AG_AAX_PLUGIN_ENABLED "Enable the AAX plugins." off)
+option(AG_LV2_PLUGIN_ENABLED "Enable the LV2 plugins." on)
+option(AG_CLAP_PLUGIN_ENABLED "Enable the CLAP plugins (clap-juce-extensions)." on)
 
 # Uncomment and set to proper path for building with VSCode
 #set(AG_DEPS_ROOT $ENV{HOME}/audiogridder/audiogridder-deps/linux-x86_64)
@@ -93,6 +95,11 @@ else()
 endif()
 
 add_subdirectory(JUCE)
+
+if(AG_CLAP_PLUGIN_ENABLED)
+  # MIT licensed JUCE extensions that build a CLAP from a JUCE plugin, see libs/clap-juce-extensions
+  add_subdirectory(libs/clap-juce-extensions EXCLUDE_FROM_ALL)
+endif()
 
 set(AG_VST2_SDK_FOUND OFF)
 if(AG_SDKS_ROOT AND EXISTS "${AG_VST2_SDK}/pluginterfaces/vst2.x/aeffect.h")
