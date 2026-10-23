@@ -3,6 +3,25 @@
 Changes in this fork ([MistaMin/audiogridder](https://github.com/MistaMin/audiogridder))
 compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogridder).
 
+## 1.3.1 (marcosfork)
+
+- New plug-in formats: CLAP (built with clap-juce-extensions, MIT) and LV2, in
+  addition to AudioUnit, VST3 and AAX. Each format has effect, instrument and MIDI
+  plug-ins.
+- AAX plug-ins are signed through PACE (wrap configuration for the AudioGridder product).
+- macOS binaries are universal (Apple Silicon and Intel), built against macOS 11.1. The
+  x86_64 FFmpeg and libwebp dependencies are cross-compiled and were run under Rosetta to test.
+- Windows x64 and Linux x86_64 builds are produced by GitHub Actions. Windows ARM64 and
+  Linux ARM64 are not released, but can be built from source (see DEVELOP.md).
+- Fix: the server could crash at startup on recent macOS when the splash window was
+  released on a background thread.
+- Fix: the installed applications were unreadable for other users, because the
+  restrictive permissions of the build folder were copied into the installer. The
+  release script now sets safe permissions before packaging.
+- Licences: the binaries are freeware, provided without warranty (package/licenses/FREEWARE.txt).
+  The notices for CLAP, clap-juce-extensions and LV2 are added.
+- Documentation: README and developer guide describe the new formats and the release process.
+
 ## 1.3.0 (marcosfork)
 
 macOS installers for Apple Silicon. There is no Windows build of 1.3.0 yet.

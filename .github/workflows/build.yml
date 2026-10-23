@@ -1,0 +1,77 @@
+name: Build
+
+# Builds AudioGridder for Windows x64 and Linux x86_64 and uploads the binaries as artifacts.
+# Run it from the Actions tab (workflow_dispatch). macOS builds are made and signed locally.
+# Windows ARM64 and Linux ARM64 are not built here, see DEVELOP.md.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Check out the dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: apohl79/audiogridder-deps
+          path: deps
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DAG_DEPS_ROOT="${{ github.workspace }}/deps/windows-x86_64" `
+            -DAG_ENABLE_CODE_SIGNING=OFF -DAG_WITH_TESTS=OFF `
+            -DAG_LV2_PLUGIN_ENABLED=ON -DAG_CLAP_PLUGIN_ENABLED=ON -DAG_AAX_PLUGIN_ENABLED=OFF
+      - name: Build
+        run: cmake --build build --config RelWithDebInfo
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioGridder-windows-x64
+          path: |
+            build/bin
+            build/lib
+          if-no-files-found: error
+
+  linux-x86_64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Check out the dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: apohl79/audiogridder-deps
+          path: deps
+      - name: Install JUCE dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libfreetype-dev libx11-dev \
+            libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev \
+            libxrender-dev libgl1-mesa-dev
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DAG_DEPS_ROOT="$GITHUB_WORKSPACE/deps/linux-x86_64" \
+            -DAG_WITH_TESTS=OFF -DAG_LV2_PLUGIN_ENABLED=ON -DAG_CLAP_PLUGIN_ENABLED=ON \
+            -DAG_AAX_PLUGIN_ENABLED=OFF
+      - name: Build
+        run: cmake --build build
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioGridder-linux-x86_64
+          path: |
+            build/bin
+            build/lib
+          if-no-files-found: error

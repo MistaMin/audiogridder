@@ -1,0 +1,28 @@
+AudioGridder 1.3.1 - Freeware Notice
+====================================
+
+AudioGridder is free of charge. The binaries (the server, the plugin tray application,
+and the AU, VST3, CLAP, LV2 and AAX plug-ins) may be installed and used at no cost.
+
+AudioGridder source code is MIT licensed (see AudioGridder-MIT.txt).
+
+JUCE
+----
+The binaries are built with the JUCE framework under a commercial JUCE 9 licence
+held by the distributor of this software. The JUCE framework is not distributed
+under the AGPLv3 in these binaries. See JUCE.txt.
+
+AAX
+---
+The AAX plug-ins are signed with a PACE wrap configuration for the AudioGridder
+product. The AAX SDK itself is not distributed with AudioGridder. Use of the AAX
+plug-in format is subject to the Avid AAX developer terms.
+
+NO WARRANTY
+-----------
+AudioGridder is provided "as is", without warranty of any kind, express or implied,
+including but not limited to the warranties of merchantability, fitness for a
+particular purpose and non-infringement. The author and distributor are not liable
+for any claim, damage or other liability arising from the use of this software.
+
+Third-party components are listed in LICENSES.txt and are covered by their own licences.
