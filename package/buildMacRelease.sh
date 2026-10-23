@@ -37,6 +37,15 @@ if [ ${#ARGS[@]} -lt 1 ]; then
     exit 1
 fi
 
+# Sets folders and executables to 755 and other files to 644, so the installed copies are readable by
+# every user whatever the modes of the source folder were. Restrictive modes (drwx------, common on
+# external volumes) are copied into the installer, and macOS then reports the installed app as damaged.
+normalize_modes() {
+    find "$1" -type d -exec chmod 755 {} +
+    find "$1" -type f -perm -u+x -exec chmod 755 {} +
+    find "$1" -type f ! -perm -u+x -exec chmod 644 {} +
+}
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$(cd "${ARGS[0]}" && pwd)"
 OUT="${ARGS[1]:-$ROOT/package/build/release}"
@@ -81,6 +90,7 @@ for b in $SERVER_BUNDLES $PLUGIN_BUNDLES; do
     ditto --norsrc --noextattr --noqtn "$BUILD/$b" "$WORK/stage/$b"
 done
 find "$WORK/stage" -name "._*" -delete
+normalize_modes "$WORK/stage"
 
 echo "==> signing bundles with: $AG_SIGN_APP"
 for b in $PLUGIN_BUNDLES; do
@@ -105,6 +115,7 @@ echo "==> collecting documentation"
 ditto --norsrc --noextattr "$ROOT/package/licenses" "$WORK/docs/Licenses"
 cp "$GUIDE" "$WORK/docs/"
 find "$WORK/docs" -name "._*" -delete
+normalize_modes "$WORK/docs"
 
 cp "$ROOT/package/licenses/LICENSES.txt" "$WORK/resources/license.txt"
 cat > "$WORK/resources/conclusion.html" <<EOF
