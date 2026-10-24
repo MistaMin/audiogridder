@@ -75,4 +75,5 @@ jobs:
           path: |
             build/bin
             build/lib
+            build/Plugin/AudioGridder*_artefacts/*/VST3
           if-no-files-found: error

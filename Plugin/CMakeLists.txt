@@ -157,12 +157,31 @@ macro(ag_add_plugin type)
     endif()
   endif()
 
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # The global per-configuration output folders override the bundle path JUCE sets for the VST3 binary, which
+    # leaves a loose .so in lib/. Point each configuration back at JUCE's own bundle folder
+    # (<name>.vst3/Contents/<arch>-linux), so the binary and JUCE's moduleinfo.json end up in one bundle.
+    set(AG_VST3_BUNDLE_BIN "$<TARGET_PROPERTY:AudioGridder${type}_VST3,LIBRARY_OUTPUT_DIRECTORY>")
+    set_target_properties(AudioGridder${type}_VST3 PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY_DEBUG "${AG_VST3_BUNDLE_BIN}"
+      LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${AG_VST3_BUNDLE_BIN}"
+      LIBRARY_OUTPUT_DIRECTORY_RELEASE "${AG_VST3_BUNDLE_BIN}")
+  endif()
+
   if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set_target_properties(AudioGridder${type}_VST3 PROPERTIES
       ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/VST3
       LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/VST3
       ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/lib/VST3
       LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/lib/VST3)
+
+    if(AG_CLAP_PLUGIN_ENABLED)
+      set_target_properties(AudioGridder${type}_CLAP PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/CLAP
+        LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/CLAP
+        ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/lib/CLAP
+        LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/lib/CLAP)
+    endif()
 
     if(AG_VST2_PLUGIN_ENABLED)
       set_target_properties(AudioGridder${type}_VST PROPERTIES
