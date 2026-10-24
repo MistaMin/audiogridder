@@ -320,13 +320,13 @@ bool Server::parsePluginLayouts(const String& id) {
                 "No cached plugin layouts have been found. This can increase plugin loading times and not all "
                 "I/O configurations might be available.";
             msg << newLine << newLine << "Do you want to rescan your plugins?";
-            if (AlertWindow::showOkCancelBox(AlertWindow::QuestionIcon, "Missing Plugin I/O Layouts", msg, "Yes",
-                                             "No")) {
-                m_pluginList.clear();
-                saveKnownPluginList();
-                getApp()->restartServer(true);
-                return false;
-            }
+            runOnMsgThreadAsync([this, msg] {
+                if (AlertWindow::showOkCancelBox(AlertWindow::QuestionIcon, "Missing Plugin I/O Layouts", msg, "Yes", "No")) {
+                    m_pluginList.clear();
+                    saveKnownPluginList();
+                    getApp()->restartServer(true);
+                }
+            });
         }
     } else {
         auto readLayouts = [this](const std::string& key, const auto& jlayouts) {
@@ -1022,7 +1022,7 @@ void Server::scanForPlugins(const std::vector<String>& include) {
         }
         msg << newLine << newLine;
         msg << "You can force a rescan via Plugin Manager.";
-        AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Failed Plugins", msg, "OK");
+        runOnMsgThreadAsync([msg] { AlertWindow::showMessageBoxAsync(AlertWindow::WarningIcon, "Failed Plugins", msg, "OK"); });
     }
 }
 

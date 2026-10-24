@@ -3,6 +3,14 @@
 Changes in this fork ([MistaMin/audiogridder](https://github.com/MistaMin/audiogridder))
 compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogridder).
 
+## 1.3.4 (marcosfork)
+
+- Fix: the AudioGridder Server could hang after the plugin scan and never start listening. At the end
+  of the scan (and when asking about missing plugin I/O layouts) it opened a blocking dialog from the
+  scan thread, which JUCE 9 on macOS cannot show, so the server stopped there. The dialogs now open on
+  the main thread without blocking the scan.
+- All macOS binaries, installers and the AAX plug-ins are rebuilt and signed as 1.3.4.
+
 ## 1.3.3 (marcosfork)
 
 - Fix: the MIDI AudioUnit failed Apple's `auval` validation ("Default Format of unit does not match
