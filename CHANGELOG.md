@@ -11,8 +11,10 @@ compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogrid
 - AAX plug-ins are signed through PACE (wrap configuration for the AudioGridder product).
 - macOS binaries are universal (Apple Silicon and Intel), built against macOS 11.1. The
   x86_64 FFmpeg and libwebp dependencies are cross-compiled and were run under Rosetta to test.
-- Windows x64 and Linux x86_64 builds are produced by GitHub Actions. Windows ARM64 and
-  Linux ARM64 are not released, but can be built from source (see DEVELOP.md).
+- Preview builds for Windows x64 (server, tray, VST3, LV2) and Linux x86_64 (server, tray,
+  CLAP, LV2) from GitHub Actions. They are untested, and the Windows files are unsigned.
+  Known gaps: no CLAP on Windows, and no VST3 bundle on Linux. Windows ARM64 and Linux ARM64
+  are not released, but can be built from source (see DEVELOP.md).
 - Fix: the server could crash at startup on recent macOS when the splash window was
   released on a background thread.
 - Fix: the installed applications were unreadable for other users, because the

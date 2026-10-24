@@ -62,13 +62,20 @@ network** access. The
 explains each step. The installers put the guide and the licences in
 `/Library/Documentation/AudioGridder`.
 
-## Windows and Linux
+## Windows and Linux (preview)
 
-There is no Windows or Linux build of 1.3.1 yet. The Windows build of 1.2.1 is on the
+The 1.3.1 release has **preview** builds for Windows x64 and Linux x86_64. They are made by the
+GitHub Actions workflow in `.github/workflows`, have not been tested by the maintainer, and are
+not installers. The Windows files are not code signed.
+
+- Windows x64: server, tray app, VST3 and LV2 plug-ins. No CLAP or AAX.
+- Linux x86_64: server, tray app, CLAP and LV2 plug-ins. No VST3 (not packaged as a proper
+  bundle yet) and no AAX.
+
+The Windows build of 1.2.1 is on the
 [releases page](https://github.com/MistaMin/audiogridder/releases/tag/win-only-1.2.1).
-Windows x64 and Linux x86_64 builds are produced by the GitHub Actions workflow in
-`.github/workflows`. Windows ARM64 and Linux ARM64 are not released, but can be built
-from source, see [DEVELOP.md](DEVELOP.md).
+Windows ARM64 and Linux ARM64 are not released, but can be built from source, see
+[DEVELOP.md](DEVELOP.md).
 
 # Features
 
