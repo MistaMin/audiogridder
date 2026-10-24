@@ -3,16 +3,25 @@
 Changes in this fork ([MistaMin/audiogridder](https://github.com/MistaMin/audiogridder))
 compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogridder).
 
+## 1.3.3 (marcosfork)
+
+- Fix: the MIDI AudioUnit failed Apple's `auval` validation ("Default Format of unit does not match
+  reported Channel handling capabilities"), because JUCE 9 reported MIDI effects as having no audio
+  inputs while AudioGridder's MIDI plug-in has a 2 channel input bus. This affected 1.3.0 to 1.3.2.
+  The JUCE fork now only uses that shortcut for MIDI effects without an audio input bus. The
+  effect, instrument and MIDI AudioUnits all pass `auval`.
+- Licences: added the Avid trademark notice for AAX and Pro Tools, and the AAX SDK licence text
+  (the SDK itself is not distributed).
+- Source archive: includes every submodule, recursively.
+- All binaries, installers and the AAX plug-ins are rebuilt and signed as 1.3.3. Behaviour is
+  otherwise the same as 1.3.2.
+
 ## 1.3.2 (marcosfork)
 
 - Fix: the Windows CLAP plug-ins were built, but into a folder that was not collected. They are
   now built into `lib/CLAP` and included in the Windows preview.
 - Fix: on Linux the VST3 binary was written loose into `lib/` instead of into a `.vst3` bundle.
   It is now built into the bundle folder JUCE uses, so hosts can find it.
-- Fix: the MIDI AudioUnit failed Apple's `auval` validation ("Default Format of unit does not match
-  reported Channel handling capabilities"), because JUCE 9 reported MIDI effects as having no audio
-  inputs while AudioGridder's MIDI plug-in has a 2 channel input bus. This affected 1.3.0 and 1.3.1.
-  The JUCE fork now only uses that shortcut for MIDI effects without an audio input bus.
 - All macOS binaries, installers and the AAX plug-ins are rebuilt and signed as 1.3.2. Behaviour
   is otherwise the same as 1.3.1.
 - The 1.3.1 release notes said the Windows build had no CLAP. That was wrong. The files were built

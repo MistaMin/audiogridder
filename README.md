@@ -22,7 +22,7 @@ in your DAW but not using your local CPU.
 This is a fork of [apohl79/audiogridder](https://github.com/apohl79/audiogridder)
 by Andreas Pohl, maintained at
 [MistaMin/audiogridder](https://github.com/MistaMin/audiogridder). The current
-version is **1.3.2**. Compared to upstream 1.2 it adds:
+version is **1.3.3**. Compared to upstream 1.2 it adds:
 
 - AAX, CLAP and LV2 plug-ins alongside AudioUnit and VST3,
 - universal macOS binaries (Apple Silicon and Intel),
@@ -44,15 +44,15 @@ Download the installers from the
 
 ## macOS
 
-AudioGridder 1.3.2 is available as universal binaries for Apple Silicon and Intel
+AudioGridder 1.3.3 is available as universal binaries for Apple Silicon and Intel
 Macs running macOS 11.1 or later. The installers are signed and notarized by Apple.
 
-- `AudioGridderServer_1.3.2_macOS-universal.pkg`: install on the computer that runs
+- `AudioGridderServer_1.3.3_macOS-universal.pkg`: install on the computer that runs
   the plugins. Installs `AudioGridderServer.app` into Applications.
-- `AudioGridderPlugin_1.3.2_macOS-universal.pkg`: install on the computer that runs
+- `AudioGridderPlugin_1.3.3_macOS-universal.pkg`: install on the computer that runs
   your DAW. Installs the AudioUnit, VST3, CLAP, LV2 and AAX plug-ins (effect,
   instrument and MIDI) and `AudioGridderPluginTray.app`.
-- `AudioGridder_1.3.2_macOS-universal.dmg`: a disk image that contains both
+- `AudioGridder_1.3.3_macOS-universal.dmg`: a disk image that contains both
   installers, the permissions guide, the changelog, the README and the licences.
 
 On the server Mac, AudioGridder Server needs the **Accessibility** and **Screen
@@ -64,7 +64,7 @@ explains each step. The installers put the guide and the licences in
 
 ## Windows and Linux (preview)
 
-The 1.3.2 release has **preview** builds for Windows x64 and Linux x86_64. They are made by the
+The 1.3.3 release has **preview** builds for Windows x64 and Linux x86_64. They are made by the
 GitHub Actions workflow in `.github/workflows`, have not been tested by the maintainer, and are
 not installers. The Windows files are not code signed.
 

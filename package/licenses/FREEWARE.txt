@@ -1,4 +1,4 @@
-AudioGridder 1.3.2 - Freeware Notice
+AudioGridder 1.3.3 - Freeware Notice
 ====================================
 
 AudioGridder is free of charge. The binaries (the server, the plugin tray application,
