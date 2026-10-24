@@ -112,6 +112,8 @@ third-party components (JUCE, FFmpeg, libwebp, Boost, CLAP and the components JU
 compiles in). Their notices are in [package/licenses](package/licenses). JUCE is used
 under a commercial JUCE 9 licence held by the distributor of the binaries.
 
+AAX and Pro Tools are trademarks of Avid Technology, Inc.
+
 # Donations
 
 AudioGridder was created by Andreas Pohl and is free. If you use it, please

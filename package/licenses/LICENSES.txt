@@ -45,7 +45,10 @@ https://lv2plug.in
 AAX
 ---
 The AAX plug-ins are built with the Avid AAX SDK. The SDK is not distributed with
-AudioGridder. The AAX bundles are signed through PACE. See FREEWARE.txt.
+AudioGridder. Its licence text is in third-party/AAX-SDK/LICENSE.txt. The AAX bundles are
+signed through PACE. See FREEWARE.txt.
+
+AAX and Pro Tools are trademarks of Avid Technology, Inc.
 
 
 FFmpeg

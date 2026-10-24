@@ -17,6 +17,7 @@ AAX
 The AAX plug-ins are signed with a PACE wrap configuration for the AudioGridder
 product. The AAX SDK itself is not distributed with AudioGridder. Use of the AAX
 plug-in format is subject to the Avid AAX developer terms.
+AAX and Pro Tools are trademarks of Avid Technology, Inc.
 
 NO WARRANTY
 -----------

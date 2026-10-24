@@ -48,6 +48,13 @@ copy sratom              $JM/juce_audio_processors_headless/format_types/LV2_SDK
 copy AudioUnitSDK        $JM/juce_audio_plugin_client/AU/AudioUnitSDK/LICENSE.txt
 copy CHOC                $JM/juce_javascript/choc/LICENSE.md
 
+# Licence text of the Avid AAX SDK (only the licence text, the SDK itself is not distributed).
+# Set AG_AAX_SDK to the SDK folder to include it.
+if [ -n "${AG_AAX_SDK:-}" ] && [ -f "$AG_AAX_SDK/LICENSE.txt" ]; then
+    mkdir -p "$OUT/AAX-SDK"
+    tr -d '\r' < "$AG_AAX_SDK/LICENSE.txt" > "$OUT/AAX-SDK/LICENSE.txt"
+fi
+
 # Component inventory with versions and SPDX licence ids, taken from JUCE's SBOM.
 python3 -I - JUCE/JUCE.spdx.json "$OUT/COMPONENTS.txt" <<'EOF'
 import json, sys
