@@ -161,7 +161,7 @@ macro(ag_add_plugin type)
     # The global per-configuration output folders override the bundle path JUCE sets for the VST3 binary, which
     # leaves a loose .so in lib/. Point each configuration back at JUCE's own bundle folder
     # (<name>.vst3/Contents/<arch>-linux), so the binary and JUCE's moduleinfo.json end up in one bundle.
-    set(AG_VST3_BUNDLE_BIN "$<TARGET_PROPERTY:AudioGridder${type}_VST3,LIBRARY_OUTPUT_DIRECTORY>")
+    set(AG_VST3_BUNDLE_BIN "$<GENEX_EVAL:$<TARGET_PROPERTY:AudioGridder${type}_VST3,LIBRARY_OUTPUT_DIRECTORY>>")
     set_target_properties(AudioGridder${type}_VST3 PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY_DEBUG "${AG_VST3_BUNDLE_BIN}"
       LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${AG_VST3_BUNDLE_BIN}"
