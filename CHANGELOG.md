@@ -3,6 +3,17 @@
 Changes in this fork ([MistaMin/audiogridder](https://github.com/MistaMin/audiogridder))
 compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogridder).
 
+## 1.3.2 (marcosfork)
+
+- Fix: the Windows CLAP plug-ins were built, but into a folder that was not collected. They are
+  now built into `lib/CLAP` and included in the Windows preview.
+- Fix: on Linux the VST3 binary was written loose into `lib/` instead of into a `.vst3` bundle.
+  It is now built into the bundle folder JUCE uses, so hosts can find it.
+- All macOS binaries, installers and the AAX plug-ins are rebuilt and signed as 1.3.2. Behaviour
+  is otherwise the same as 1.3.1.
+- The 1.3.1 release notes said the Windows build had no CLAP. That was wrong. The files were built
+  but not packaged.
+
 ## 1.3.1 (marcosfork)
 
 - New plug-in formats: CLAP (built with clap-juce-extensions, MIT) and LV2, in
@@ -13,7 +24,7 @@ compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogrid
   x86_64 FFmpeg and libwebp dependencies are cross-compiled and were run under Rosetta to test.
 - Preview builds for Windows x64 (server, tray, VST3, LV2) and Linux x86_64 (server, tray,
   CLAP, LV2) from GitHub Actions. They are untested, and the Windows files are unsigned.
-  Known gaps: no CLAP on Windows, and no VST3 bundle on Linux. Windows ARM64 and Linux ARM64
+  (1.3.2 completes these previews, see above.) Windows ARM64 and Linux ARM64
   are not released, but can be built from source (see DEVELOP.md).
 - Fix: the server could crash at startup on recent macOS when the splash window was
   released on a background thread.
