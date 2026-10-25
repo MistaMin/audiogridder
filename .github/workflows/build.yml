@@ -83,12 +83,14 @@ jobs:
           "VERSION=$version" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           Get-ChildItem $stage -Recurse -File | Select-Object -ExpandProperty FullName
       - name: List the DLLs the binaries import
-        shell: cmd
+        shell: pwsh
+        continue-on-error: true
         run: |
-          for %%f in (stage\AudioGridderServer.exe stage\AudioGridderPluginTray.exe stage\VST3\AudioGridder.vst3) do (
-            echo === %%f
-            dumpbin /dependents %%f | findstr /i ".dll"
-          )
+          foreach ($f in 'stage/AudioGridderServer.exe', 'stage/AudioGridderPluginTray.exe', 'stage/VST3/AudioGridder.vst3') {
+            Write-Host "=== $f"
+            dumpbin /dependents $f | Select-String '\.dll' | ForEach-Object { $_.Line.Trim() }
+          }
+          exit 0
       - name: Build the installer
         shell: pwsh
         run: |

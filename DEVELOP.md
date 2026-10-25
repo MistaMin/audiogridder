@@ -64,6 +64,8 @@ package/update-third-party-licenses.sh
 
 | Platform | Architecture | Status | Dependencies |
 |---|---|---|---|
+| macOS 10.7+ (legacy) | x86_64 | released | `audiogridder-deps/macos-10.7-x86_64` |
+| Windows 7+ (legacy) | x86_64 | released via GitHub Actions | `audiogridder-deps/windows-x86_64` |
 | macOS 11.1+ | universal (arm64 + x86_64) | released | `audiogridder-deps/macos-11.1-arm64` and `macos-11.1-x86_64` (combined with lipo) |
 | Windows 10+ | x86_64 | released via GitHub Actions | `audiogridder-deps/windows-x86_64` |
 | Linux | x86_64 | released via GitHub Actions | `audiogridder-deps/linux-x86_64` |
@@ -72,6 +74,32 @@ package/update-third-party-licenses.sh
 
 Each platform uses the same CMake project. Set `AG_DEPS_ROOT` to the folder that contains the
 platform's `include` and `lib` folders, and `AG_SDKS_ROOT` to the folder with the optional SDKs.
+
+### Legacy edition (macOS 10.7+, Windows 7+)
+
+`-DAG_LEGACY=ON` builds with JUCE 7.0.5 (`libs/JUCE-legacy`, the fork branch `audiogridder-7.0.5`)
+instead of JUCE 9. The sources are shared, the differences between the two JUCE versions are in
+`Common/Source/JuceCompat.hpp`. The network protocol is the same, so both editions interoperate.
+
+**macOS 10.7+ (x86_64):** the system C++ library of macOS 10.7 and 10.8 is too old, so the legacy build uses
+its own static libc++:
+
+```
+package/legacy/build-libcxx.sh <work dir>
+cmake -S . -B build-legacy -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DAG_LEGACY=ON \
+  -DAG_MACOS_TARGET=10.7 -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+  -DAG_LEGACY_LIBCXX_ROOT=<work dir>/libcxx17-macos10.7 \
+  -DAG_DEPS_ROOT=<path>/audiogridder-deps/macos-10.7-x86_64 -DAG_AAX_PLUGIN_ENABLED=OFF
+cmake --build build-legacy
+package/buildMacRelease.sh build-legacy <output dir> --legacy
+```
+
+The current Xcode and SDK are used with a deployment target of 10.7; newer system APIs are weak linked
+and guarded by runtime checks. `package/legacy/macos-legacy-prefix.h` is force included to declare two
+math functions that the SDK only declares for deployment targets from macOS 10.9.
+
+**Windows 7+ (x64):** the legacy job in `.github/workflows/build.yml` uses the Visual Studio 2019 toolset
+(v142, the toolset the dependencies were built with), a static runtime and `_WIN32_WINNT=0x0601`.
 
 ### Building for Windows or Linux ARM64
 

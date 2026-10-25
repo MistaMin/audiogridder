@@ -22,7 +22,7 @@ in your DAW but not using your local CPU.
 This is a fork of [apohl79/audiogridder](https://github.com/apohl79/audiogridder)
 by Andreas Pohl, maintained at
 [MistaMin/audiogridder](https://github.com/MistaMin/audiogridder). The current
-version is **1.3.4**. Compared to upstream 1.2 it adds:
+version is **1.3.5**. Compared to upstream 1.2 it adds:
 
 - AAX, CLAP and LV2 plug-ins alongside AudioUnit and VST3,
 - universal macOS binaries (Apple Silicon and Intel),
@@ -44,15 +44,15 @@ Download the installers from the
 
 ## macOS
 
-AudioGridder 1.3.4 is available as universal binaries for Apple Silicon and Intel
+AudioGridder 1.3.5 is available as universal binaries for Apple Silicon and Intel
 Macs running macOS 11.1 or later. The installers are signed and notarized by Apple.
 
-- `AudioGridderServer_1.3.4_macOS-universal.pkg`: install on the computer that runs
+- `AudioGridderServer_1.3.5_macOS-universal.pkg`: install on the computer that runs
   the plugins. Installs `AudioGridderServer.app` into Applications.
-- `AudioGridderPlugin_1.3.4_macOS-universal.pkg`: install on the computer that runs
+- `AudioGridderPlugin_1.3.5_macOS-universal.pkg`: install on the computer that runs
   your DAW. Installs the AudioUnit, VST3, CLAP, LV2 and AAX plug-ins (effect,
   instrument and MIDI) and `AudioGridderPluginTray.app`.
-- `AudioGridder_1.3.4_macOS-universal.dmg`: a disk image that contains both
+- `AudioGridder_1.3.5_macOS-universal.dmg`: a disk image that contains both
   installers, the permissions guide, the changelog, the README and the licences.
 
 On the server Mac, AudioGridder Server needs the **Accessibility** and **Screen
@@ -62,14 +62,29 @@ network** access. The
 explains each step. The installers put the guide and the licences in
 `/Library/Documentation/AudioGridder`.
 
+## Older systems: macOS 10.7+ and Windows 7+ (legacy edition)
+
+Every release has a **legacy edition** for older computers. It is built from the same source with
+JUCE 7.0.5 and talks to the normal edition over the network, so a legacy server works with a modern
+plug-in and the other way round.
+
+- macOS 10.7 or later, Intel (x86_64) only: `AudioGridderServer_1.3.5_macOS-10.7-x86_64.pkg` and
+  `AudioGridderPlugin_1.3.5_macOS-10.7-x86_64.pkg` (AudioUnit, VST3, CLAP and LV2; no AAX).
+- Windows 7 SP1 or later (x64): `AudioGridder_1.3.5_Windows-7-x64-setup.exe`.
+
+The legacy edition has not been tested on real macOS 10.7 or Windows 7 machines by the maintainer yet.
+Please report problems on the [issues page](https://github.com/MistaMin/audiogridder/issues).
+
 ## Windows and Linux (preview)
 
-The 1.3.4 release has **preview** builds for Windows x64 and Linux x86_64. They are made by the
-GitHub Actions workflow in `.github/workflows`, have not been tested by the maintainer, and are
-not installers. The Windows files are not code signed.
+The 1.3.5 release has **preview** builds for Windows x64 and Linux x86_64. They are made by the
+GitHub Actions workflow in `.github/workflows`, have not been tested by the maintainer, and the
+Windows files are not code signed (Windows SmartScreen may warn).
 
-- Windows x64: server, tray app, and VST3, CLAP and LV2 plug-ins. No AAX.
-- Linux x86_64: server, tray app, and VST3, CLAP and LV2 plug-ins. No AAX.
+- Windows 10+ x64: `AudioGridder_1.3.5_Windows-x64-setup.exe`, an installer for the server, the tray
+  app and the VST3, CLAP and LV2 plug-ins. No AAX.
+- Linux x86_64: a `.tar.gz` with the server, the tray app and the VST3, CLAP and LV2 plug-ins and an
+  `install.sh`. No AAX.
 
 The Windows build of 1.2.1 is on the
 [releases page](https://github.com/MistaMin/audiogridder/releases/tag/win-only-1.2.1).
@@ -95,12 +110,13 @@ Windows ARM64 and Linux ARM64 are not released, but can be built from source, se
 
 # Compatibility
 
-- Server: macOS 11.1+ (universal), Windows 10 (1607)+, Linux
-- Plugin: macOS 11.1+ (universal), Windows 10 (1607)+, Linux
-- AudioGridder is 64bit only
+| Edition | macOS | Windows | Linux |
+|---|---|---|---|
+| Modern (JUCE 9) | 11.1+ (universal) | 10 (1607)+ | x86_64 |
+| Legacy (JUCE 7.0.5) | 10.7+ (Intel) | 7 SP1+ | not built |
 
-Since 1.3.0 the fork uses JUCE 9, which no longer supports macOS older than 10.11
-or Windows 7/8. Use an upstream 1.2 release for older systems.
+Server and plug-in have the same requirements, and AudioGridder is 64bit only. Both editions are built
+from the same source, `AG_LEGACY=ON` selects the legacy one, see [DEVELOP.md](DEVELOP.md).
 
 # Freeware and licence
 
