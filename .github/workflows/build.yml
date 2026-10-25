@@ -1,6 +1,7 @@
 name: Build
 
-# Builds AudioGridder for Windows x64 and Linux x86_64 and uploads the binaries as artifacts.
+# Builds AudioGridder for Windows x64 (modern and legacy/Windows 7) and Linux x86_64 and uploads the binaries as
+# artifacts. The Windows jobs also build the installer.
 # Run it from the Actions tab (workflow_dispatch). macOS builds are made and signed locally.
 # Windows ARM64 and Linux ARM64 are not built here, see DEVELOP.md.
 
@@ -12,7 +13,24 @@ permissions:
 
 jobs:
   windows-x64:
+    # "modern" is built with JUCE 9 and needs Windows 10. "legacy" is built with JUCE 7.0.5 and the Visual Studio
+    # 2019 toolset (v142) and runs on Windows 7 SP1 and later.
+    name: windows-x64-${{ matrix.edition }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: modern
+            legacy: "OFF"
+            toolset: ""
+            label: ""
+            suffix: ""
+          - edition: legacy
+            legacy: "ON"
+            toolset: "14.29"
+            label: "(Windows 7 and later)"
+            suffix: "-legacy"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,24 +40,75 @@ jobs:
         with:
           repository: apohl79/audiogridder-deps
           path: deps
+      - name: Install the Visual Studio 2019 toolset
+        if: matrix.legacy == 'ON'
+        shell: pwsh
+        run: |
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          $vs = & "$installer\vswhere.exe" -latest -property installationPath
+          if (-not (Get-ChildItem "$vs\VC\Tools\MSVC" -Filter '14.29*' -ErrorAction SilentlyContinue)) {
+            Start-Process "$installer\vs_installer.exe" -Wait -ArgumentList "modify --installPath `"$vs`" --add Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64 --quiet --norestart --nocache"
+          }
+          Get-ChildItem "$vs\VC\Tools\MSVC" | Select-Object -ExpandProperty Name
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+          toolset: ${{ matrix.toolset }}
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DAG_LEGACY=${{ matrix.legacy }} `
             -DAG_DEPS_ROOT="${{ github.workspace }}/deps/windows-x86_64" `
             -DAG_ENABLE_CODE_SIGNING=OFF -DAG_WITH_TESTS=OFF `
             -DAG_LV2_PLUGIN_ENABLED=ON -DAG_CLAP_PLUGIN_ENABLED=ON -DAG_AAX_PLUGIN_ENABLED=OFF
       - name: Build
         run: cmake --build build --config RelWithDebInfo
-      - name: Upload binaries
+      - name: Stage the files
+        shell: pwsh
+        run: |
+          $version = (Get-Content package/VERSION.num).Trim()
+          $stage = "stage"
+          New-Item -ItemType Directory -Force "$stage/VST3", "$stage/CLAP", "$stage/LV2", "$stage/Licenses" | Out-Null
+          Copy-Item build/bin/AudioGridderServer.exe, build/bin/AudioGridderPluginTray.exe $stage
+          Get-ChildItem build/lib -Filter *.vst3 -File | Copy-Item -Destination "$stage/VST3"
+          Get-ChildItem build/lib/CLAP -Filter *.clap -File | Copy-Item -Destination "$stage/CLAP"
+          Get-ChildItem build/lib -Filter *.lv2 -Directory | ForEach-Object {
+            $dest = "$stage/LV2/$($_.Name)"
+            New-Item -ItemType Directory -Force $dest | Out-Null
+            Get-ChildItem $_.FullName -File | Where-Object { $_.Extension -notin '.pdb', '.ilk', '.exp', '.lib' } | Copy-Item -Destination $dest
+          }
+          Copy-Item -Recurse -Force package/licenses/* "$stage/Licenses"
+          Copy-Item CHANGELOG.md $stage
+          (Get-Content package/windows/README.txt -Raw).Replace('@VERSION@', $version).Replace('@EDITION@', '${{ matrix.label }}'.Trim()) | Set-Content "$stage/README.txt"
+          "VERSION=$version" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          Get-ChildItem $stage -Recurse -File | Select-Object -ExpandProperty FullName
+      - name: List the DLLs the binaries import
+        shell: cmd
+        run: |
+          for %%f in (stage\AudioGridderServer.exe stage\AudioGridderPluginTray.exe stage\VST3\AudioGridder.vst3) do (
+            echo === %%f
+            dumpbin /dependents %%f | findstr /i ".dll"
+          )
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $legacyDefine = if ('${{ matrix.legacy }}' -eq 'ON') { '/DLegacy=1' } else { '' }
+          $name = if ('${{ matrix.legacy }}' -eq 'ON') { "AudioGridder_${env:VERSION}_Windows-7-x64-setup" } else { "AudioGridder_${env:VERSION}_Windows-x64-setup" }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DSourceDir=$PWD\stage" "/DOutputDir=$PWD\installer" "/DOutputName=$name" $legacyDefine package/windows/AudioGridder.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem installer
+      - name: Upload the installer
         uses: actions/upload-artifact@v4
         with:
-          name: AudioGridder-windows-x64
-          path: |
-            build/bin
-            build/lib
+          name: AudioGridder-windows-x64${{ matrix.suffix }}-installer
+          path: installer/*.exe
+          if-no-files-found: error
+      - name: Upload the binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioGridder-windows-x64${{ matrix.suffix }}
+          path: stage
           if-no-files-found: error
 
   linux-x86_64:
