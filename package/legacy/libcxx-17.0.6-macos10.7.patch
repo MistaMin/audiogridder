@@ -1,0 +1,71 @@
+diff --git a/libcxx/src/CMakeLists.txt b/libcxx/src/CMakeLists.txt
+index 35b46652..5f7ae3b1 100644
+--- a/libcxx/src/CMakeLists.txt
++++ b/libcxx/src/CMakeLists.txt
+@@ -108,10 +108,9 @@ endif()
+ 
+ if (LIBCXX_ENABLE_FILESYSTEM)
+   list(APPEND LIBCXX_SOURCES
+-    filesystem/directory_entry.cpp
+-    filesystem/directory_iterator.cpp
++    # AudioGridder legacy build: operations, directory_entry and directory_iterator need openat() and
++    # friends (macOS 10.10+). Nothing in AudioGridder uses std::filesystem, so they are left out.
+     filesystem/file_descriptor.h
+-    filesystem/operations.cpp
+     filesystem/posix_compat.h
+     filesystem/time_utils.h
+     )
+diff --git a/libcxx/src/chrono.cpp b/libcxx/src/chrono.cpp
+index f1596132..8d98cce2 100644
+--- a/libcxx/src/chrono.cpp
++++ b/libcxx/src/chrono.cpp
+@@ -31,7 +31,12 @@
+ # include <sys/time.h> // for gettimeofday and timeval
+ #endif
+ 
+-#if defined(__APPLE__) || defined (__gnu_hurd__) || (defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0)
++// clock_gettime() is only available since macOS 10.12, use gettimeofday() and mach_absolute_time() below that
++#if defined(__APPLE__) && defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
++# define _LIBCPP_AG_NO_CLOCK_GETTIME
++#endif
++
++#if !defined(_LIBCPP_AG_NO_CLOCK_GETTIME) && (defined(__APPLE__) || defined (__gnu_hurd__) || (defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0))
+ # define _LIBCPP_HAS_CLOCK_GETTIME
+ #endif
+ 
+@@ -172,12 +177,22 @@ system_clock::from_time_t(time_t t) noexcept
+ // Furthermore, only CLOCK_MONOTONIC_RAW is truly monotonic, because it
+ // also counts cycles when the system is asleep. Thus, it is the only
+ // acceptable implementation of steady_clock.
++#ifdef _LIBCPP_AG_NO_CLOCK_GETTIME
++static steady_clock::time_point __libcpp_steady_clock_now() {
++    static mach_timebase_info_data_t tb = [] { mach_timebase_info_data_t t; mach_timebase_info(&t); return t; }();
++    uint64_t t = mach_absolute_time();
++    // split to avoid overflow of t * numer
++    uint64_t ns = (t / tb.denom) * tb.numer + ((t % tb.denom) * tb.numer) / tb.denom;
++    return steady_clock::time_point(nanoseconds(ns));
++}
++#else
+ static steady_clock::time_point __libcpp_steady_clock_now() {
+     struct timespec tp;
+     if (0 != clock_gettime(CLOCK_MONOTONIC_RAW, &tp))
+         __throw_system_error(errno, "clock_gettime(CLOCK_MONOTONIC_RAW) failed");
+     return steady_clock::time_point(seconds(tp.tv_sec) + nanoseconds(tp.tv_nsec));
+ }
++#endif
+ 
+ #elif defined(_LIBCPP_WIN32API)
+ 
+diff --git a/libcxx/src/filesystem/filesystem_clock.cpp b/libcxx/src/filesystem/filesystem_clock.cpp
+index fbb19ac6..0c7e4c48 100644
+--- a/libcxx/src/filesystem/filesystem_clock.cpp
++++ b/libcxx/src/filesystem/filesystem_clock.cpp
+@@ -46,7 +46,7 @@ _FilesystemClock::time_point _FilesystemClock::now() noexcept {
+   detail::TimeSpec tp = detail::filetime_to_timespec(time);
+   return time_point(__secs(tp.tv_sec) +
+                     chrono::duration_cast<duration>(__nsecs(tp.tv_nsec)));
+-#elif defined(_LIBCPP_HAS_CLOCK_GETTIME)
++#elif defined(_LIBCPP_HAS_CLOCK_GETTIME) && !(defined(__APPLE__) && defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200)
+   typedef chrono::duration<rep, nano> __nsecs;
+   struct timespec tp;
+   if (0 != clock_gettime(CLOCK_REALTIME, &tp))
