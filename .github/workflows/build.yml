@@ -70,9 +70,14 @@ jobs:
           $stage = "stage"
           New-Item -ItemType Directory -Force "$stage/VST3", "$stage/CLAP", "$stage/LV2", "$stage/Licenses" | Out-Null
           Copy-Item build/bin/AudioGridderServer.exe, build/bin/AudioGridderPluginTray.exe $stage
-          Get-ChildItem build/lib -Filter *.vst3 -File | Copy-Item -Destination "$stage/VST3"
-          Get-ChildItem build/lib/CLAP -Filter *.clap -File | Copy-Item -Destination "$stage/CLAP"
-          Get-ChildItem build/lib -Filter *.lv2 -Directory | ForEach-Object {
+          Write-Host "Plug-in files in the build tree:"
+          Get-ChildItem build -Recurse -Include *.vst3, *.clap, *.lv2 | ForEach-Object { Write-Host "  $($_.FullName)" }
+          # VST3: use the bundle folders (<name>.vst3\Contents\x86_64-win\<name>.vst3), or single files if there are none
+          $vst3 = @(Get-ChildItem build -Recurse -Filter *.vst3 -Directory | Where-Object { $_.Parent.Name -ne 'x86_64-win' })
+          if ($vst3.Count -eq 0) { $vst3 = @(Get-ChildItem build -Recurse -Filter *.vst3 -File) }
+          $vst3 | Sort-Object Name -Unique | ForEach-Object { Copy-Item -Recurse $_.FullName "$stage/VST3/$($_.Name)" }
+          Get-ChildItem build -Recurse -Filter *.clap -File | Sort-Object Name -Unique | Copy-Item -Destination "$stage/CLAP"
+          Get-ChildItem build -Recurse -Filter *.lv2 -Directory | Sort-Object Name -Unique | ForEach-Object {
             $dest = "$stage/LV2/$($_.Name)"
             New-Item -ItemType Directory -Force $dest | Out-Null
             Get-ChildItem $_.FullName -File | Where-Object { $_.Extension -notin '.pdb', '.ilk', '.exp', '.lib' } | Copy-Item -Destination $dest
@@ -95,9 +100,14 @@ jobs:
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
-          $legacyDefine = if ('${{ matrix.legacy }}' -eq 'ON') { '/DLegacy=1' } else { '' }
-          $name = if ('${{ matrix.legacy }}' -eq 'ON') { "AudioGridder_${env:VERSION}_Windows-7-x64-setup" } else { "AudioGridder_${env:VERSION}_Windows-x64-setup" }
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DSourceDir=$PWD\stage" "/DOutputDir=$PWD\installer" "/DOutputName=$name" $legacyDefine package/windows/AudioGridder.iss
+          $isccArgs = @("/DAppVersion=$env:VERSION", "/DSourceDir=$PWD\stage", "/DOutputDir=$PWD\installer")
+          if ('${{ matrix.legacy }}' -eq 'ON') {
+            $isccArgs += '/DLegacy=1'
+            $isccArgs += "/DOutputName=AudioGridder_${env:VERSION}_Windows-7-x64-setup"
+          } else {
+            $isccArgs += "/DOutputName=AudioGridder_${env:VERSION}_Windows-x64-setup"
+          }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" @isccArgs package/windows/AudioGridder.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem installer
       - name: Upload the installer
