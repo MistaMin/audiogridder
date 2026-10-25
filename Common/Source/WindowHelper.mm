@@ -11,7 +11,11 @@
 
 #include "WindowHelper.hpp"
 
+#ifdef AG_LEGACY
+#include <juce_graphics/native/juce_mac_CoreGraphicsHelpers.h>
+#else
 #include <juce_graphics/native/juce_CoreGraphicsHelpers_mac.h>
+#endif
 
 namespace e47 {
 namespace WindowHelper {

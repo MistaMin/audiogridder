@@ -433,8 +433,7 @@ void Client::init() {
 
         if (nullptr != audioSock) {
             logln("audio connection established");
-            auto opts = RealtimeOptions().withMaximumProcessingTimeMs(
-                jmax(1.0, round(m_samplesPerBlock / m_sampleRate * 1000) - 1));
+            auto opts = agRealtimeOptions(jmax(1.0, round(m_samplesPerBlock / m_sampleRate * 1000) - 1));
             std::lock_guard<std::mutex> audiolck(m_audioMtx);
             if (m_doublePrecission) {
                 m_audioStreamerD = std::make_shared<AudioStreamer<double>>(this, audioSock);

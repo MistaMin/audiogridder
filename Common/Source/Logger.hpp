@@ -9,6 +9,7 @@
 #define Logger_hpp
 
 #include <JuceHeader.h>
+#include "JuceCompat.hpp"
 #include <iostream>
 #include <fstream>
 

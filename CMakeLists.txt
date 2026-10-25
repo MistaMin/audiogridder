@@ -16,6 +16,7 @@ option(AG_ENABLE_SENTRY "Enable crash reporting via sentry." off)
 option(AG_ENABLE_ASAN "Enable AddressSanitizer." off)
 option(AG_VST2_PLUGIN_ENABLED "Enable the VST2 plugins." off)
 option(AG_AAX_PLUGIN_ENABLED "Enable the AAX plugins." off)
+option(AG_LEGACY "Build with JUCE 7.0.5 for older systems (macOS 10.7+, Windows 7+) instead of JUCE 9." off)
 option(AG_LV2_PLUGIN_ENABLED "Enable the LV2 plugins." on)
 option(AG_CLAP_PLUGIN_ENABLED "Enable the CLAP plugins (clap-juce-extensions)." on)
 
@@ -59,6 +60,10 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   if(MSVC)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+    if(AG_LEGACY)
+      # Windows 7 and later
+      add_compile_definitions(_WIN32_WINNT=0x0601 WINVER=0x0601)
+    endif()
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_definitions(_WIN32_WINNT=0x0601)
   endif()
@@ -94,7 +99,13 @@ else()
   find_package(Boost 1.73.0 REQUIRED)
 endif()
 
-add_subdirectory(JUCE)
+if(AG_LEGACY)
+  # Legacy build: JUCE 7.0.5, for macOS 10.7+ and Windows 7+. See DEVELOP.md.
+  add_compile_definitions(AG_LEGACY=1)
+  add_subdirectory(libs/JUCE-legacy JUCE)
+else()
+  add_subdirectory(JUCE)
+endif()
 
 if(AG_CLAP_PLUGIN_ENABLED)
   # MIT licensed JUCE extensions that build a CLAP from a JUCE plugin, see libs/clap-juce-extensions
