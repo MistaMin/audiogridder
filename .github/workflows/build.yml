@@ -73,8 +73,9 @@ jobs:
           Write-Host "Plug-in files in the build tree:"
           Get-ChildItem build -Recurse -Include *.vst3, *.clap, *.lv2 | ForEach-Object { Write-Host "  $($_.FullName)" }
           # VST3: use the bundle folders (<name>.vst3\Contents\x86_64-win\<name>.vst3), or single files if there are none
-          $vst3 = @(Get-ChildItem build -Recurse -Filter *.vst3 -Directory | Where-Object { $_.Parent.Name -ne 'x86_64-win' })
-          if ($vst3.Count -eq 0) { $vst3 = @(Get-ChildItem build -Recurse -Filter *.vst3 -File) }
+          # Only count a bundle if it really contains the DLL; otherwise it is an empty shell (just moduleinfo.json)
+          $vst3 = @(Get-ChildItem build -Recurse -Filter *.vst3 -Directory | Where-Object { $_.Parent.Name -ne 'x86_64-win' -and (Test-Path "$($_.FullName)/Contents/x86_64-win/*.vst3") })
+          if ($vst3.Count -eq 0) { $vst3 = @(Get-ChildItem build -Recurse -Filter *.vst3 -File | Where-Object { $_.Length -gt 1MB }) }
           $vst3 | Sort-Object Name -Unique | ForEach-Object { Copy-Item -Recurse $_.FullName "$stage/VST3/$($_.Name)" }
           Get-ChildItem build -Recurse -Filter *.clap -File | Sort-Object Name -Unique | Copy-Item -Destination "$stage/CLAP"
           Get-ChildItem build -Recurse -Filter *.lv2 -Directory | Sort-Object Name -Unique | ForEach-Object {
