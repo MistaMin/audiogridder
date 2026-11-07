@@ -2,7 +2,11 @@
 #
 # Builds signed and notarized macOS installers from a finished build directory.
 #
-#   package/buildMacRelease.sh <build dir> [output dir] [--no-notarize]
+#   package/buildMacRelease.sh <build dir> [output dir] [--no-notarize] [--legacy]
+#
+# --legacy packages the macOS 10.7+ build (x86_64 only, built with AG_LEGACY, see DEVELOP.md). It has no AAX
+# plug-ins, the installers are named macOS-10.7-x86_64 and the code signatures also carry SHA-1 hashes, which
+# macOS 10.7 to 10.10 need to verify a signature.
 #
 # - Signs all bundles with the Developer ID Application certificate, using the
 #   hardened runtime and a secure timestamp.
@@ -24,10 +28,13 @@ AG_NOTARY_PROFILE=${AG_NOTARY_PROFILE:-AC_NOTARY}
 AG_WRAPTOOL=${AG_WRAPTOOL:-/Applications/PACEAntiPiracy/Eden/Fusion/bin/wraptool}
 
 NOTARIZE=1
+LEGACY=0
 ARGS=()
 for a in "$@"; do
     if [ "$a" == "--no-notarize" ]; then
         NOTARIZE=0
+    elif [ "$a" == "--legacy" ]; then
+        LEGACY=1
     else
         ARGS+=("$a")
     fi
@@ -61,9 +68,14 @@ PLUGIN_BUNDLES="bin/AudioGridderPluginTray.app lib/AudioGridder.component lib/Au
 # LV2 bundles are plain folders, not app bundles, so codesign rejects them. Their binaries are signed instead.
 LV2_BUNDLES="lib/AudioGridder.lv2 lib/AudioGridderInst.lv2 lib/AudioGridderMidi.lv2"
 AAX_BUNDLES="lib/AudioGridder.aaxplugin lib/AudioGridderInst.aaxplugin lib/AudioGridderMidi.aaxplugin"
+DIGEST=""
+if [ $LEGACY -eq 1 ]; then
+    AAX_BUNDLES=""
+    DIGEST="--digest-algorithm=sha1,sha256"
+fi
 # AAX bundles already signed by PACE wraptool (see DEVELOP.md). They are copied as they are and are not re-signed.
 AG_AAX_SIGNED_DIR=${AG_AAX_SIGNED_DIR:-}
-if [ -z "$AG_AAX_SIGNED_DIR" ]; then
+if [ -z "$AG_AAX_SIGNED_DIR" ] && [ $LEGACY -eq 0 ]; then
     echo "error: set AG_AAX_SIGNED_DIR to the folder with the PACE-signed AAX bundles (see DEVELOP.md)" >&2
     exit 1
 fi
@@ -89,6 +101,14 @@ ARCH=$(lipo -archs "$BUILD/bin/AudioGridderServer.app/Contents/MacOS/AudioGridde
 if [ "$ARCH" == "x86_64-arm64" ] || [ "$ARCH" == "arm64-x86_64" ]; then
     ARCH=universal
 fi
+OSNAME="macOS"
+OSMIN="11.1"
+HOSTARCHS="arm64,x86_64"
+if [ $LEGACY -eq 1 ]; then
+    OSNAME="macOS-10.7"
+    OSMIN="10.7"
+    HOSTARCHS="x86_64"
+fi
 
 # Work on the internal disk: copying with ditto --norsrc drops AppleDouble (._*) files and extended
 # attributes, which external (non-APFS) volumes add and which codesign rejects.
@@ -112,14 +132,14 @@ normalize_modes "$WORK/stage"
 
 echo "==> signing bundles with: $AG_SIGN_APP"
 for b in $PLUGIN_BUNDLES; do
-    codesign --force --timestamp --options runtime --sign "$AG_SIGN_APP" "$WORK/stage/$b"
+    codesign --force --timestamp --options runtime $DIGEST --sign "$AG_SIGN_APP" "$WORK/stage/$b"
 done
 for b in $LV2_BUNDLES; do
     for so in "$WORK/stage/$b"/*.so; do
-        codesign --force --timestamp --options runtime --sign "$AG_SIGN_APP" "$so"
+        codesign --force --timestamp --options runtime $DIGEST --sign "$AG_SIGN_APP" "$so"
     done
 done
-codesign --force --timestamp --options runtime --entitlements "$ENTITLEMENTS" --sign "$AG_SIGN_APP" \
+codesign --force --timestamp --options runtime $DIGEST --entitlements "$ENTITLEMENTS" --sign "$AG_SIGN_APP" \
     "$WORK/stage/bin/AudioGridderServer.app"
 
 echo "==> verifying signatures"
@@ -194,9 +214,11 @@ lv2pkg AudioGridderMidi.lv2 midi com.e47.audiogridder.lv2.midi lv2-midi.pkg
 pkgc com.e47.audiogridder.clap "$WORK/stage/lib/AudioGridder.clap" $CLAP clap-fx.pkg
 pkgc com.e47.audiogridder.clap.inst "$WORK/stage/lib/AudioGridderInst.clap" $CLAP clap-inst.pkg
 pkgc com.e47.audiogridder.clap.midi "$WORK/stage/lib/AudioGridderMidi.clap" $CLAP clap-midi.pkg
-pkgc com.e47.audiogridder.aax "$WORK/stage/lib/AudioGridder.aaxplugin" "$AAXDIR" aax-fx.pkg
-pkgc com.e47.audiogridder.aax.inst "$WORK/stage/lib/AudioGridderInst.aaxplugin" "$AAXDIR" aax-inst.pkg
-pkgc com.e47.audiogridder.aax.midi "$WORK/stage/lib/AudioGridderMidi.aaxplugin" "$AAXDIR" aax-midi.pkg
+if [ $LEGACY -eq 0 ]; then
+    pkgc com.e47.audiogridder.aax "$WORK/stage/lib/AudioGridder.aaxplugin" "$AAXDIR" aax-fx.pkg
+    pkgc com.e47.audiogridder.aax.inst "$WORK/stage/lib/AudioGridderInst.aaxplugin" "$AAXDIR" aax-inst.pkg
+    pkgc com.e47.audiogridder.aax.midi "$WORK/stage/lib/AudioGridderMidi.aaxplugin" "$AAXDIR" aax-midi.pkg
+fi
 pkgbuild --root "$WORK/docs" --install-location /Library/Documentation/AudioGridder --version "$VER" \
     --identifier com.e47.audiogridder.docs "$WORK/pkgs/docs.pkg" >/dev/null
 
@@ -216,28 +238,31 @@ distribution() {
     <title>%s</title>
     <license file="license.txt"/>
     <conclusion file="conclusion.html" mime-type="text/html"/>
-    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
-    <volume-check><allowed-os-versions><os-version min="11.1"/></allowed-os-versions></volume-check>
+    <options customize="never" require-scripts="false" hostArchitectures="%s"/>
+    <volume-check><allowed-os-versions><os-version min="%s"/></allowed-os-versions></volume-check>
     <choices-outline><line choice="default"><line choice="ag"/></line></choices-outline>
     <choice id="default"/>
     <choice id="ag" visible="false">
 %b    </choice>
-%b</installer-gui-script>\n' "$title" "$refs" "$lines"
+%b</installer-gui-script>\n' "$title" "$HOSTARCHS" "$OSMIN" "$refs" "$lines"
 }
 
 mkdir -p "$OUT"
-SERVER_PKG="AudioGridderServer_${VER}_macOS-${ARCH}.pkg"
-PLUGIN_PKG="AudioGridderPlugin_${VER}_macOS-${ARCH}.pkg"
+SERVER_PKG="AudioGridderServer_${VER}_${OSNAME}-${ARCH}.pkg"
+PLUGIN_PKG="AudioGridderPlugin_${VER}_${OSNAME}-${ARCH}.pkg"
 
 echo "==> building installers"
 E=com.e47.audiogridder
+AAX_REFS=""
+if [ $LEGACY -eq 0 ]; then
+    AAX_REFS="$E.aax:aax-fx.pkg $E.aax.inst:aax-inst.pkg $E.aax.midi:aax-midi.pkg"
+fi
 distribution "AudioGridder Server $VER" $E.server:server.pkg $E.docs:docs.pkg > "$WORK/server.dist"
 distribution "AudioGridder Plugin $VER" $E.plugintray:tray.pkg $E.au:au-fx.pkg $E.au.inst:au-inst.pkg \
     $E.au.midi:au-midi.pkg $E.vst3:vst3-fx.pkg $E.vst3.inst:vst3-inst.pkg $E.vst3.midi:vst3-midi.pkg \
     $E.lv2:lv2-fx.pkg $E.lv2.inst:lv2-inst.pkg $E.lv2.midi:lv2-midi.pkg \
     $E.clap:clap-fx.pkg $E.clap.inst:clap-inst.pkg $E.clap.midi:clap-midi.pkg \
-    $E.aax:aax-fx.pkg $E.aax.inst:aax-inst.pkg $E.aax.midi:aax-midi.pkg \
-    $E.docs:docs.pkg > "$WORK/plugin.dist"
+    $AAX_REFS $E.docs:docs.pkg > "$WORK/plugin.dist"
 productbuild --distribution "$WORK/server.dist" --package-path "$WORK/pkgs" --resources "$WORK/resources" \
     "$WORK/server-unsigned.pkg" >/dev/null
 productbuild --distribution "$WORK/plugin.dist" --package-path "$WORK/pkgs" --resources "$WORK/resources" \

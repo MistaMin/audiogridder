@@ -4,3 +4,7 @@
 [submodule "libs/clap-juce-extensions"]
 	path = libs/clap-juce-extensions
 	url = https://github.com/free-audio/clap-juce-extensions.git
+[submodule "libs/JUCE-legacy"]
+	path = libs/JUCE-legacy
+	url = https://github.com/MistaMin/JUCE.git
+	branch = audiogridder-7.0.5

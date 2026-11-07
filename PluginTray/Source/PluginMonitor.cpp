@@ -287,7 +287,7 @@ void PluginMonitorWindow::updatePosition() {
     auto updateLegend = [&](Status& legend, Label& label) {
         legend.setBounds(legendX, 10, 6, 16);
         legendX += 8;
-        label.setBounds(legendX, 10, GlyphArrangement::getStringWidthInt(label.getFont(), label.getText()) + 18, 16);
+        label.setBounds(legendX, 10, agStringWidth(label.getFont(), label.getText()) + 18, 16);
         legendX += label.getWidth();
     };
 
