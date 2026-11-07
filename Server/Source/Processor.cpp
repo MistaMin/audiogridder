@@ -9,6 +9,7 @@
 #include "ProcessorChain.hpp"
 #include "App.hpp"
 #include "Server.hpp"
+#include "OversamplingLatency.hpp"
 
 #include <cmath>
 #include <functional>
@@ -573,7 +574,8 @@ bool Processor::processBlockInternal(AudioBuffer<T>& buffer, MidiBuffer& midiMes
         TimeTrace::addTracePoint("proc_got_backend");
         traceln("  processing ch " << ch << ": suspended=" << (int)p->isSuspended());
         if (ch == 0) {
-            latencySamples = p->getLatencySamples() + m_oversamplingLatencySamples.load();
+            latencySamples = baseRateOversamplingLatency(p->getLatencySamples(), m_oversamplingFactor.load(),
+                                                        m_oversamplingLatencySamples.load());
             updateLatencyBuffers(latencySamples);
         }
         if (!p->isSuspended()) {
@@ -862,7 +864,7 @@ void Processor::setOversamplingFactor(int factor) {
         int stages = factor >= 4 ? 2 : 1;
         dsp::Oversampling<float> probe((size_t)1, (size_t)stages,
                                        dsp::Oversampling<float>::filterHalfBandFIREquiripple, true, false);
-        m_oversamplingLatencySamples = (int)std::round(probe.getLatencyInSamples());
+        m_oversamplingLatencySamples = probe.getLatencyInSamples();
     } else {
         m_oversamplingLatencySamples = 0;
     }
@@ -1171,7 +1173,8 @@ int Processor::getLatencySamples() {
         callBackendWithReturn(getLatencySamples);
         return 0;
     };
-    return getLatency() + m_oversamplingLatencySamples.load();
+    return baseRateOversamplingLatency(getLatency(), m_oversamplingFactor.load(),
+                                      m_oversamplingLatencySamples.load());
 }
 
 void Processor::setExtraChannels(int in, int out) {

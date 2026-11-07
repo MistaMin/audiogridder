@@ -16,6 +16,7 @@
 #include "AudioRingBuffer.hpp"
 
 #include <juce_dsp/juce_dsp.h>
+#include <cmath>
 
 namespace e47 {
 
@@ -90,7 +91,7 @@ class Processor : public LogTagDelegate, public std::enable_shared_from_this<Pro
     void updateLatencyBuffers(int newLatency);
     void setOversamplingFactor(int factor);
     int getOversamplingFactor() const { return m_oversamplingFactor.load(); }
-    int getOversamplingLatencySamples() const { return m_oversamplingLatencySamples.load(); }
+    int getOversamplingLatencySamples() const { return (int)std::round(m_oversamplingLatencySamples.load()); }
     void enableAllBuses();
     void setProcessingPrecision(AudioProcessor::ProcessingPrecision p);
     void setMonoChannels(uint64 channels);
@@ -238,7 +239,7 @@ class Processor : public LogTagDelegate, public std::enable_shared_from_this<Pro
     };
 
     std::atomic_int m_oversamplingFactor{1};
-    std::atomic_int m_oversamplingLatencySamples{0};
+    std::atomic<double> m_oversamplingLatencySamples{0.0};
     std::mutex m_oversamplingMtx;
     std::vector<OversamplingSlot<float>> m_oversamplingF;
     std::vector<OversamplingSlot<double>> m_oversamplingD;
