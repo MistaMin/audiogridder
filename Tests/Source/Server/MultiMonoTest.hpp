@@ -42,6 +42,10 @@ class MultiMonoTest : UnitTest {
 
         String id = "VST3-66155f87";
         auto desc = Processor::findPluginDescription(id, pl);
+        expect(nullptr != desc, "test plugin " + id + " not found, is TestsData missing?");
+        if (nullptr == desc) {
+            return;
+        }
         auto proc = std::make_shared<Processor>(*pc, id, sampleRate, blockSize, false);
         expect(proc->load("|", "Multi-Mono", 0, err, desc.get()), "Load failed: " + err);
         pc->addProcessor(proc);

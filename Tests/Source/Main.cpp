@@ -15,6 +15,8 @@
 #include "Server/ProcessorChainTest.hpp"
 #include "Server/SandboxPluginTest.hpp"
 #include "Server/MultiMonoTest.hpp"
+#include "Server/MessageTest.hpp"
+#include "Server/OversamplingTest.hpp"
 #endif
 
 #ifdef AG_UNIT_TEST_PLUGIN_FX

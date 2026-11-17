@@ -47,7 +47,8 @@ macro(ag_add_testrunner type)
       AG_UNIT_TEST_SERVER
       AG_SERVER
       JUCE_PLUGINHOST_VST3=1
-      JUCE_PLUGINHOST_VST=1)
+      # VST2 hosting needs the VST2 SDK, which is optional
+      JUCE_PLUGINHOST_VST=$<BOOL:${AG_VST2_SDK_FOUND}>)
   elseif(${type} STREQUAL "fx")
     target_sources(${BINNAME} PRIVATE ${AG_SOURCES_PLUGIN})
     target_compile_definitions(${BINNAME} PRIVATE
@@ -66,6 +67,7 @@ macro(ag_add_testrunner type)
     juce::juce_audio_basics
     juce::juce_audio_formats
     juce::juce_audio_processors
+    juce::juce_dsp
     juce::juce_recommended_config_flags
     juce::juce_recommended_warning_flags
     juce::juce_recommended_lto_flags)
