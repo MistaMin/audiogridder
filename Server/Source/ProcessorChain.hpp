@@ -84,6 +84,7 @@ class ProcessorChain : public AudioProcessor, public LogTagDelegate {
     void delProcessor(int idx);
     void exchangeProcessors(int idxA, int idxB);
     float getParameterValue(int idx, int channel, int paramIdx);
+    void setOversamplingFactor(int idx, int factor);
     void update();
     void clear();
     String toString();

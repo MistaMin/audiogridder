@@ -148,6 +148,11 @@ jobs:
             -DAG_DEPS_ROOT="$GITHUB_WORKSPACE/deps/linux-x86_64" \
             -DAG_WITH_TESTS=OFF -DAG_LV2_PLUGIN_ENABLED=ON -DAG_CLAP_PLUGIN_ENABLED=ON \
             -DAG_AAX_PLUGIN_ENABLED=OFF
+      - name: Check the oversampling latency
+        run: |
+          cmake -S tools/latency-probe -B build-probe -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-probe
+          ./build-probe/opengridder-latency-probe
       - name: Build
         run: cmake --build build
       - name: Upload binaries

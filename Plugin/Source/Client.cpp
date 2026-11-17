@@ -784,7 +784,7 @@ Array<ServerPlugin> Client::getRecents() {
     LockByID lock(*this, GETRECENTS);
     msg.send(m_cmdOut.get());
     if (msg.read(m_cmdOut.get(), &err, 5000)) {
-        String listChunk(PLD(msg).str, (size_t)*PLD(msg).size);
+        auto listChunk = PLD(msg).getString();
         auto list = StringArray::fromLines(listChunk);
         for (auto& line : list) {
             if (!line.isEmpty()) {
@@ -892,10 +892,10 @@ void Client::ScreenReceiver::run() {
     MessageHelper::Error err;
     do {
         if (msg.read(m_socket, &err, 200)) {
-            if (PLD(msg).hdr->size > 0) {
+            if (PLD(msg).getImageSize() > 0) {
                 int width = (int)(PLD(msg).hdr->width / PLD(msg).hdr->scale);
                 int height = (int)(PLD(msg).hdr->height / PLD(msg).hdr->scale);
-                auto img = m_imgReader.read(DATA(msg), PLD(msg).hdr->size, PLD(msg).hdr->width, PLD(msg).hdr->height,
+                auto img = m_imgReader.read(DATA(msg), PLD(msg).getImageSize(), PLD(msg).hdr->width, PLD(msg).hdr->height,
                                             PLD(msg).hdr->widthPadded, PLD(msg).hdr->heightPadded, PLD(msg).hdr->scale);
                 if (nullptr != img) {
                     m_client->setPluginScreen(img, width, height);

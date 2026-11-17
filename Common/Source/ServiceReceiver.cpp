@@ -156,7 +156,7 @@ bool ServiceReceiver::updateServers() {
     }
 
     for (auto it = m_lastReachableChecks.begin(); it != m_lastReachableChecks.end();) {
-        if (it->second + 30000 > now) {
+        if (it->second + 30000 < now) {
             it = m_lastReachableChecks.erase(it);
         } else {
             it++;
@@ -219,13 +219,18 @@ int ServiceReceiver::handleRecord(int /*sock*/, const struct sockaddr* from, siz
                         m_curId = MDNS_TO_JUCE_STRING(m_txtBuffer[itxt].value).getIntValue();
                         complete = true;
                     } else if (key == "INFO") {
-                        json j = json::parse(MDNS_TO_JUCE_STRING(m_txtBuffer[itxt].value).toStdString());
-                        m_curId = jsonGetValue(j, "ID", 0);
-                        m_curUuid = jsonGetValue(j, "UUID", String());
-                        m_curLoad = jsonGetValue(j, "LOAD", 0.0f);
-                        m_curLocalMode = jsonGetValue(j, "LM", false);
-                        m_curVersion = jsonGetValue(j, "V", String("unknown"));
-                        complete = true;
+                        // any device on the network can send this record
+                        try {
+                            json j = json::parse(MDNS_TO_JUCE_STRING(m_txtBuffer[itxt].value).toStdString());
+                            m_curId = jsonGetValue(j, "ID", 0);
+                            m_curUuid = jsonGetValue(j, "UUID", String());
+                            m_curLoad = jsonGetValue(j, "LOAD", 0.0f);
+                            m_curLocalMode = jsonGetValue(j, "LM", false);
+                            m_curVersion = jsonGetValue(j, "V", String("unknown"));
+                            complete = true;
+                        } catch (const json::exception& e) {
+                            logln("ignoring invalid service record: " << e.what());
+                        }
                     }
                 }
             }

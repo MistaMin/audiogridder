@@ -3,6 +3,20 @@
 Changes in this fork ([MistaMin/audiogridder](https://github.com/MistaMin/audiogridder))
 compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogridder).
 
+## Unreleased
+
+- Fix: changing the oversampling factor during playback could crash the server. The change now waits
+  for the audio thread.
+- Fix: with oversampling on, a block larger than the announced block size wrote past a buffer, MIDI
+  events were played too early, and plugin isolation mode ran the plugin at the wrong rate
+  (oversampling is now ignored in that mode).
+- Fix: malformed network messages (too short, wrong sizes, wrong JSON types, bad discovery records)
+  could crash the server or the DAW. A client that connected and sent nothing blocked all new
+  connections.
+- Fix: text with non-ASCII characters (preset names, clipboard, errors) was cut off or garbled.
+- New: `AllowedClients` in the server config, a list of IP addresses that may connect. Empty allows
+  everyone, as before.
+
 ## 1.3.5 (marcosfork)
 
 - New: a **legacy edition** for older systems, built from the same source with JUCE 7.0.5 (`AG_LEGACY`):

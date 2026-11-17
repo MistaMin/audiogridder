@@ -191,6 +191,14 @@ class AudioMessage : public LogTagDelegate {
 
     int getLatencySamples() const { return m_resHeader.latencySamples; }
 
+    // Upper bounds for values read from the network, far above anything a host sends.
+    static constexpr int MAX_CHANNELS = 256;
+    static constexpr int MAX_SAMPLES = 1 << 20;
+    static constexpr int MAX_MIDI_EVENTS = 1 << 20;
+    static constexpr int MAX_MIDI_SIZE = 1 << 20;
+
+    static bool inRange(int val, int max) { return val >= 0 && val <= max; }
+
     template <typename T>
     bool sendToServer(StreamingSocket* socket, AudioBuffer<T>& buffer, MidiBuffer& midi,
                       AudioPlayHead::PositionInfo& posInfo, int channelsRequested, int samplesRequested,
@@ -274,6 +282,12 @@ class AudioMessage : public LogTagDelegate {
                 return false;
             }
 
+            if (!inRange(m_resHeader.channels, MAX_CHANNELS) || !inRange(m_resHeader.samples, MAX_SAMPLES) ||
+                !inRange(m_resHeader.numMidiEvents, MAX_MIDI_EVENTS)) {
+                MessageHelper::seterr(e, MessageHelper::E_DATA, "invalid response header");
+                return false;
+            }
+
             traceln("  buffer: channels=" << buffer.getNumChannels() << ", samples=" << buffer.getNumSamples());
             traceln("  header: channels=" << m_resHeader.channels << ", samples=" << m_resHeader.samples);
 
@@ -340,6 +354,10 @@ class AudioMessage : public LogTagDelegate {
                     MessageHelper::seterrstr(e, "midi header");
                     return false;
                 }
+                if (!inRange(midiHdr.size, MAX_MIDI_SIZE)) {
+                    MessageHelper::seterr(e, MessageHelper::E_DATA, "invalid midi header");
+                    return false;
+                }
                 auto size = (size_t)midiHdr.size;
                 if (midiData.size() < size) {
                     midiData.resize(size);
@@ -366,6 +384,14 @@ class AudioMessage : public LogTagDelegate {
         if (nullptr != socket && socket->isConnected()) {
             if (!read(socket, &m_reqHeader, sizeof(m_reqHeader), 0, e, &metric)) {
                 MessageHelper::seterrstr(e, "request header");
+                return false;
+            }
+
+            if (!inRange(m_reqHeader.channels, MAX_CHANNELS) || !inRange(m_reqHeader.samples, MAX_SAMPLES) ||
+                !inRange(m_reqHeader.channelsRequested, MAX_CHANNELS) ||
+                !inRange(m_reqHeader.samplesRequested, MAX_SAMPLES) ||
+                !inRange(m_reqHeader.numMidiEvents, MAX_MIDI_EVENTS)) {
+                MessageHelper::seterr(e, MessageHelper::E_DATA, "invalid request header");
                 return false;
             }
 
@@ -399,6 +425,10 @@ class AudioMessage : public LogTagDelegate {
                 MidiHeader midiHdr;
                 if (!read(socket, &midiHdr, sizeof(midiHdr), 0, e, &metric)) {
                     MessageHelper::seterrstr(e, "midi header");
+                    return false;
+                }
+                if (midiHdr.size > MAX_MIDI_SIZE) {
+                    MessageHelper::seterr(e, MessageHelper::E_DATA, "invalid midi header");
                     return false;
                 }
                 if (midiHdr.size > 0) {
@@ -499,14 +529,18 @@ class StringPayload : public Payload {
     StringPayload(int type) : Payload(type, sizeof(int)) { realignInternal(); }
 
     void setString(const String& s) {
-        setSize((int)sizeof(int) + s.length());
-        *size = s.length();
-        memcpy(str, s.getCharPointer(), (size_t)s.length());
+        // bytes, not characters: non-ASCII characters take more than one byte
+        int len = (int)s.getNumBytesAsUTF8();
+        setSize((int)sizeof(int) + len);
+        *size = len;
+        memcpy(str, s.toRawUTF8(), (size_t)len);
     }
 
     String getString() const {
-        if (nullptr != str && nullptr != size && *size > 0) {
-            return String(str, static_cast<size_t>(*size));
+        // never trust the length from the wire over the size of the buffer
+        int len = nullptr != size ? jmin(*size, getSize() - (int)sizeof(int)) : 0;
+        if (nullptr != str && len > 0) {
+            return String::fromUTF8(str, len);
         }
         return {};
     }
@@ -533,6 +567,9 @@ class BinaryPayload : public Payload {
         memcpy(data, src, static_cast<size_t>(len));
     }
 
+    // The length from the wire, limited to what the buffer really holds.
+    int getDataSize() const { return jlimit(0, jmax(0, getSize() - (int)sizeof(int)), *size); }
+
     virtual void realign() override { realignInternal(); }
 
   private:
@@ -556,7 +593,7 @@ class JsonPayload : public BinaryPayload {
             return {};
         }
         try {
-            return json::parse(data, data + *size);
+            return json::parse(data, data + getDataSize());
         } catch (json::parse_error& e) {
             logln("failed to parse json payload: " << e.what());
             return {};
@@ -579,7 +616,7 @@ class MsgPackPayload : public BinaryPayload {
             return {};
         }
         try {
-            return json::from_msgpack(data, data + *size);
+            return json::from_msgpack(data, data + getDataSize());
         } catch (json::parse_error& e) {
             logln("failed to parse msgPack payload: " << e.what());
             return {};
@@ -610,17 +647,21 @@ class Result : public Payload {
     hdr_t* hdr;
     char* str;
 
-    Result() : Payload(Type) { realignInternal(); }
+    Result() : Payload(Type, sizeof(hdr_t)) { realignInternal(); }
 
     void setResult(int rc, const String& s) {
-        setSize(static_cast<int>(sizeof(hdr_t)) + s.length());
+        int len = (int)s.getNumBytesAsUTF8();
+        setSize(static_cast<int>(sizeof(hdr_t)) + len);
         hdr->rc = rc;
-        hdr->size = s.length();
-        memcpy(str, s.getCharPointer(), (size_t)s.length());
+        hdr->size = len;
+        memcpy(str, s.toRawUTF8(), (size_t)len);
     }
 
     int getReturnCode() const { return hdr->rc; }
-    String getString() const { return String(str, (size_t)hdr->size); }
+    String getString() const {
+        int len = jmin(hdr->size, getSize() - (int)sizeof(hdr_t));
+        return nullptr != str && len > 0 ? String::fromUTF8(str, len) : String();
+    }
 
     virtual void realign() override { realignInternal(); }
 
@@ -726,7 +767,7 @@ class ScreenCapture : public Payload {
     hdr_t* hdr;
     char* data;
 
-    ScreenCapture() : Payload(Type) { realign(); }
+    ScreenCapture() : Payload(Type, sizeof(hdr_t)) { realign(); }
 
     void setImage(int width, int height, int widthPadded, int heightPadded, double scale, const void* p, size_t size) {
         setSize((int)(sizeof(hdr_t) + size));
@@ -740,6 +781,9 @@ class ScreenCapture : public Payload {
             memcpy(data, p, size);
         }
     }
+
+    // The image size from the wire, limited to what the buffer really holds.
+    size_t getImageSize() const { return jmin(hdr->size, (size_t)jmax(0, getSize() - (int)sizeof(hdr_t))); }
 
     virtual void realign() override {
         hdr = reinterpret_cast<hdr_t*>(payloadBuffer.data());
@@ -779,7 +823,7 @@ class Key : public BinaryPayload {
     Key() : BinaryPayload(Type) {}
 
     const uint16_t* getKeyCodes() const { return reinterpret_cast<const uint16_t*>(data); }
-    int getKeyCount() const { return *size / (int)sizeof(uint16_t); }
+    int getKeyCount() const { return getDataSize() / (int)sizeof(uint16_t); }
 };
 
 class Clipboard : public StringPayload {
@@ -946,6 +990,7 @@ class Message : public LogTagDelegate {
     Message(const LogTag* tag = nullptr) : LogTagDelegate(tag) {
         traceScope();
         payload.setLogTagSource(tag);
+        m_minSize = payload.getSize();
         m_bytesIn = Metrics::getStatistic<Meter>("NetBytesIn");
         m_bytesOut = Metrics::getStatistic<Meter>("NetBytesOut");
     }
@@ -978,7 +1023,10 @@ class Message : public LogTagDelegate {
                     } else {
                         payload.setType(hdr.type);
                         traceln("size=" << hdr.size);
-                        if (hdr.size > 0) {
+                        if (hdr.size < 0) {
+                            success = false;
+                            MessageHelper::seterr(e, MessageHelper::E_DATA, "negative message size");
+                        } else if (hdr.size > 0) {
                             if (hdr.size > MAX_SIZE) {
                                 success = false;
                                 String estr;
@@ -986,8 +1034,10 @@ class Message : public LogTagDelegate {
                                 MessageHelper::seterr(e, MessageHelper::E_DATA, estr);
                                 traceln(estr);
                             } else {
-                                if (payload.getSize() != hdr.size) {
-                                    payload.setSize(hdr.size);
+                                // A body shorter than the fixed part of the payload is padded, never cut: the
+                                // payload accessors read that fixed part without checking.
+                                if (payload.getSize() != jmax(hdr.size, m_minSize)) {
+                                    payload.setSize(jmax(hdr.size, m_minSize));
                                 }
                                 if (!e47::read(socket, payload.getData(), hdr.size, 2000, e, m_bytesIn.get())) {
                                     success = false;
@@ -1043,7 +1093,12 @@ class Message : public LogTagDelegate {
     template <typename T2>
     static std::shared_ptr<Message<T2>> convert(std::shared_ptr<Message<T>> in) {
         auto out = std::make_shared<Message<T2>>(in->getLogTagSource());
+        auto minSize = out->payload.payloadBuffer.size();
         out->payload.payloadBuffer = std::move(in->payload.payloadBuffer);
+        if (out->payload.payloadBuffer.size() < minSize) {
+            // shorter than the fixed part of the payload: pad with zeros, the accessors don't check
+            out->payload.payloadBuffer.resize(minSize);
+        }
         out->payload.realign();
         return out;
     }
@@ -1052,6 +1107,7 @@ class Message : public LogTagDelegate {
 
   private:
     std::shared_ptr<Meter> m_bytesIn, m_bytesOut;
+    int m_minSize = 0;
 };
 
 #define PLD(m) m.payload

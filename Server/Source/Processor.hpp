@@ -89,6 +89,7 @@ class Processor : public LogTagDelegate, public std::enable_shared_from_this<Pro
     int getLatencySamples();
     void suspendProcessing(const bool shouldBeSuspended);
     void updateLatencyBuffers(int newLatency);
+    // Call through ProcessorChain::setOversamplingFactor, which holds the lock that keeps the audio thread out.
     void setOversamplingFactor(int factor);
     int getOversamplingFactor() const { return m_oversamplingFactor.load(); }
     int getOversamplingLatencySamples() const { return (int)std::round(m_oversamplingLatencySamples.load()); }
@@ -227,20 +228,21 @@ class Processor : public LogTagDelegate, public std::enable_shared_from_this<Pro
     int m_lastKnownLatency = 0;
     Point<int> m_lastPosition = {0, 0};
 
-    // Per-plugin oversampling. Requested factor is set via the network message (UI toggle), the audio thread
-    // lazily (re-)builds the oversampling stages the next time it processes a block. Supported factors: 1 (off),
-    // 2 and 4. One set of oversampling stages is kept per channel to support multi-mono plugin instances.
+    // Per-plugin oversampling. Supported factors: 1 (off), 2 and 4. One set of oversampling stages is kept per
+    // channel to support multi-mono plugin instances. The stages are only touched while the chain's processors
+    // mutex is held (audio thread, ProcessorChain::setOversamplingFactor, prepareToPlay), so they need no own lock.
     template <typename T>
     struct OversamplingSlot {
         std::unique_ptr<dsp::Oversampling<T>> os;
         std::vector<T*> chanPtrs;
+        MidiBuffer midi;
         int builtFactor = 1;
         int builtChannels = 0;
+        int builtSamples = 0;
     };
 
     std::atomic_int m_oversamplingFactor{1};
     std::atomic<double> m_oversamplingLatencySamples{0.0};
-    std::mutex m_oversamplingMtx;
     std::vector<OversamplingSlot<float>> m_oversamplingF;
     std::vector<OversamplingSlot<double>> m_oversamplingD;
 
@@ -256,9 +258,8 @@ class Processor : public LogTagDelegate, public std::enable_shared_from_this<Pro
     // Runs processFn (the wrapped plugin/client processBlock call) for channel slot ch, oversampling the buffer
     // up/down around it if oversampling is currently enabled for this processor. Returns the extra latency (in
     // samples, at the original sample rate) introduced by the oversampling stages.
-    template <typename T>
-    int runWithOversampling(int ch, AudioBuffer<T>& buffer, MidiBuffer& midiMessages,
-                            const std::function<void(AudioBuffer<T>&, MidiBuffer&)>& processFn);
+    template <typename T, typename Fn>
+    int runWithOversampling(int ch, AudioBuffer<T>& buffer, MidiBuffer& midiMessages, Fn&& processFn);
 
     enum FormatType { VST, VST3, AU, LV2 };
     FormatType m_fmt;

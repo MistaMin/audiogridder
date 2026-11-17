@@ -9,6 +9,8 @@
 #define _PROCESSORCHAINTEST_HPP_
 
 #include <JuceHeader.h>
+#include <atomic>
+#include <thread>
 
 #include "TestsHelper.hpp"
 #include "Server.hpp"
@@ -83,6 +85,25 @@ class ProcessorChainTest : UnitTest {
         }
 
         expect(pc->getSize() == (size_t)pl.getNumTypes());
+
+        // Change the oversampling factor while another thread processes audio: must not crash or hang.
+        std::atomic_bool stop{false};
+        std::thread audio([&] {
+            AudioBuffer<float> buf(jmax(chIn + chSc, chOut) + pc->getExtraChannels(), blockSize);
+            MidiBuffer midi;
+            while (!stop) {
+                buf.clear();
+                pc->processBlock(buf, midi);
+            }
+        });
+        for (int idx = 0; idx < (int)pc->getSize(); idx++) {
+            for (int factor : {2, 4, 1}) {
+                pc->setOversamplingFactor(idx, factor);
+                expect(pc->getProcessor(idx)->getOversamplingFactor() == factor);
+            }
+        }
+        stop = true;
+        audio.join();
 
         while (pc->getSize() > 0) {
             pc->delProcessor(0);

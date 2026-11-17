@@ -113,6 +113,14 @@ class Server : public Thread, public LogTag {
     bool shouldExclude(const String& name, const String& id);
     bool shouldExclude(const String& name, const String& id, const std::vector<String>& include);
     auto& getExcludeList() { return m_pluginExclude; }
+
+    // "AllowedClients" in the server config: IP addresses that may connect. Empty (default) allows everyone.
+    // Connections from this computer are always allowed.
+    bool isClientAllowed(const String& host) const {
+        auto h = host.startsWithIgnoreCase("::ffff:") ? host.substring(7) : host;  // IPv4 on an IPv6 listener
+        return m_allowedClients.isEmpty() || h.isEmpty() || h == "127.0.0.1" || h == "::1" ||
+               m_allowedClients.contains(h);
+    }
     void addPlugins(const std::vector<String>& names, std::function<void(bool, const String&)> fn);
 
     static void loadKnownPluginList(KnownPluginList& plist, json& playouts, int srvId);
@@ -174,6 +182,7 @@ class Server : public Thread, public LogTag {
     json m_jpluginLayouts;
     std::unordered_map<String, Array<AudioProcessor::BusesLayout>> m_pluginLayouts;
     std::set<String> m_pluginExclude;
+    StringArray m_allowedClients;
     bool m_enableAU = true;
     bool m_enableVST3 = true;
     bool m_enableVST2 = true;

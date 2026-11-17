@@ -169,6 +169,12 @@ void Server::loadConfig() {
                                  : m_sandboxMode == SANDBOX_PLUGIN ? "plugin isolation"
                                                                    : "disabled"));
     m_sandboxLogAutoclean = jsonGetValue(cfg, "SandboxLogAutoclean", m_sandboxLogAutoclean);
+    m_allowedClients.clear();
+    if (jsonHasValue(cfg, "AllowedClients")) {
+        for (auto& s : cfg["AllowedClients"]) {
+            m_allowedClients.add(s.get<std::string>());
+        }
+    }
     m_pluginExclude.clear();
     if (jsonHasValue(cfg, "ExcludePlugins")) {
         for (auto& s : cfg["ExcludePlugins"]) {
@@ -225,6 +231,10 @@ void Server::saveConfig() {
     j["ExcludePlugins"] = json::array();
     for (auto& p : m_pluginExclude) {
         j["ExcludePlugins"].push_back(p.toStdString());
+    }
+    j["AllowedClients"] = json::array();
+    for (auto& c : m_allowedClients) {
+        j["AllowedClients"].push_back(c.toStdString());
     }
     j["ScanForPlugins"] = m_scanForPlugins;
     j["CrashReporting"] = m_crashReporting;
@@ -1218,9 +1228,12 @@ void Server::runServer() {
             }
             if (nullptr != clnt) {
                 HandshakeRequest cfg;
-                int len = clnt->read(&cfg, sizeof(cfg), true);
                 bool handshakeOk = true;
-                if (len > 0) {
+                if (!isLocal && !isClientAllowed(clnt->getHostName())) {
+                    logln("rejecting client " << clnt->getHostName() << ": not in AllowedClients");
+                    handshakeOk = false;
+                } else if (e47::read(clnt, &cfg, sizeof(cfg), 2000)) {
+                    // read with a timeout: a client that connects and stays silent must not block this loop
                     if (cfg.version >= AG_PROTOCOL_VERSION) {
                         logln("new client " << clnt->getHostName());
                         logln("  version                   = " << cfg.version);

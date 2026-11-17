@@ -481,7 +481,12 @@ inline T jsonGetValue(const json& j, const String& name, const T& def) {
     if (!jsonHasValue(j, name)) {
         return def;
     }
-    return j[name.toStdString()].get<T>();
+    try {
+        return j[name.toStdString()].get<T>();
+    } catch (const json::exception&) {
+        // wrong type, the json can come from the network
+        return def;
+    }
 }
 
 template <>

@@ -353,6 +353,25 @@ float ProcessorChain::getParameterValue(int idx, int channel, int paramIdx) {
     return 0.0f;
 }
 
+void ProcessorChain::setOversamplingFactor(int idx, int factor) {
+    traceScope();
+    // The lock keeps the audio thread out while the plugin is re-prepared and the oversampling stages are rebuilt.
+    std::lock_guard<std::mutex> lock(m_processorsMtx);
+    if (idx > -1 && (size_t)idx < m_processors.size()) {
+        auto* proc = m_processors[(size_t)idx].get();
+        proc->setOversamplingFactor(factor);
+        // Run some silence now, so the stages are allocated here and not in the first audio block.
+        if (proc->getOversamplingFactor() <= 1) {
+            // nothing to allocate
+        } else if (isUsingDoublePrecision() && supportsDoublePrecisionProcessing()) {
+            preProcessBlocks<double>(proc);
+        } else {
+            preProcessBlocks<float>(proc);
+        }
+        updateNoLock();
+    }
+}
+
 void ProcessorChain::clear() {
     traceScope();
     releaseResources();

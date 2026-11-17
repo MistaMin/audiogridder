@@ -579,9 +579,7 @@ bool Processor::processBlockInternal(AudioBuffer<T>& buffer, MidiBuffer& midiMes
             updateLatencyBuffers(latencySamples);
         }
         if (!p->isSuspended()) {
-            std::function<void(AudioBuffer<T>&, MidiBuffer&)> callPlugin = [&p](AudioBuffer<T>& b, MidiBuffer& m) {
-                p->processBlock(b, m);
-            };
+            auto callPlugin = [&p](AudioBuffer<T>& b, MidiBuffer& m) { p->processBlock(b, m); };
             if (isPlugin && m_channels > 1) {
                 // multi-mono
                 ScopedNoDenormals noDenormals;
@@ -843,7 +841,6 @@ std::vector<Processor::OversamplingSlot<double>>& Processor::getOversamplingStag
 
 void Processor::resetOversamplingStages() {
     traceScope();
-    std::lock_guard<std::mutex> lock(m_oversamplingMtx);
     m_oversamplingF.clear();
     m_oversamplingD.clear();
 }
@@ -852,6 +849,11 @@ void Processor::setOversamplingFactor(int factor) {
     traceScope();
     if (factor != 1 && factor != 2 && factor != 4) {
         factor = 1;
+    }
+    if (m_isClient) {
+        // The plugin runs in a sandbox process that is prepared at the base rate, so it can't be oversampled here.
+        logln("oversampling is not supported in plugin isolation mode, ignoring");
+        return;
     }
     if (factor == m_oversamplingFactor.load()) {
         return;
@@ -913,16 +915,15 @@ void Processor::setOversamplingFactor(int factor) {
             }
         }
     } else {
-        // Not loaded/prepared yet (or sandboxed per-plugin client, which is out of scope for oversampling) - just
-        // remember the desired factor, it will be applied the next time prepareToPlay runs.
+        // Not loaded/prepared yet - just remember the desired factor, it will be applied the next time
+        // prepareToPlay runs.
         resetOversamplingStages();
         m_oversamplingFactor = factor;
     }
 }
 
-template <typename T>
-int Processor::runWithOversampling(int ch, AudioBuffer<T>& buffer, MidiBuffer& midiMessages,
-                                   const std::function<void(AudioBuffer<T>&, MidiBuffer&)>& processFn) {
+template <typename T, typename Fn>
+int Processor::runWithOversampling(int ch, AudioBuffer<T>& buffer, MidiBuffer& midiMessages, Fn&& processFn) {
     int factor = m_oversamplingFactor.load();
     if (factor <= 1) {
         processFn(buffer, midiMessages);
@@ -932,26 +933,26 @@ int Processor::runWithOversampling(int ch, AudioBuffer<T>& buffer, MidiBuffer& m
     int stages = factor >= 4 ? 2 : 1;
     auto& slots = getOversamplingStages<T>();
     int numChannels = buffer.getNumChannels();
+    int numSamples = buffer.getNumSamples();
 
-    {
-        std::lock_guard<std::mutex> lock(m_oversamplingMtx);
-        if ((size_t)ch >= slots.size()) {
-            slots.resize((size_t)ch + 1);
-        }
-        auto& slot = slots[(size_t)ch];
-        if (!slot.os || slot.builtFactor != factor || slot.builtChannels != numChannels) {
-            slot.os = std::make_unique<dsp::Oversampling<T>>((size_t)jmax(1, numChannels), (size_t)stages,
-                                                              dsp::Oversampling<T>::filterHalfBandFIREquiripple, true,
-                                                              false);
-            slot.os->initProcessing((size_t)jmax(1, m_blockSize));
-            slot.os->reset();
-            slot.chanPtrs.resize((size_t)jmax(1, numChannels));
-            slot.builtFactor = factor;
-            slot.builtChannels = numChannels;
-        }
+    if ((size_t)ch >= slots.size()) {
+        slots.resize((size_t)ch + 1);
+    }
+    auto& slot = slots[(size_t)ch];
+    // Hosts can send blocks that are larger than announced, the stages must never be smaller than the block.
+    if (!slot.os || slot.builtFactor != factor || slot.builtChannels != numChannels ||
+        slot.builtSamples < numSamples) {
+        slot.builtSamples = jmax(1, m_blockSize, numSamples);
+        slot.os = std::make_unique<dsp::Oversampling<T>>((size_t)jmax(1, numChannels), (size_t)stages,
+                                                          dsp::Oversampling<T>::filterHalfBandFIREquiripple, true,
+                                                          false);
+        slot.os->initProcessing((size_t)slot.builtSamples);
+        slot.os->reset();
+        slot.chanPtrs.resize((size_t)jmax(1, numChannels));
+        slot.builtFactor = factor;
+        slot.builtChannels = numChannels;
     }
 
-    auto& slot = slots[(size_t)ch];
     dsp::AudioBlock<T> block(buffer);
     auto osBlock = slot.os->processSamplesUp(block);
     int osChannels = (int)osBlock.getNumChannels();
@@ -960,15 +961,19 @@ int Processor::runWithOversampling(int ch, AudioBuffer<T>& buffer, MidiBuffer& m
         slot.chanPtrs[(size_t)c] = osBlock.getChannelPointer((size_t)c);
     }
     AudioBuffer<T> osBuffer(slot.chanPtrs.data(), osChannels, osSamples);
-    processFn(osBuffer, midiMessages);
+    // The plugin sees a block that is factor times longer, so the MIDI positions have to be scaled with it.
+    slot.midi.clear();
+    for (const auto m : midiMessages) {
+        slot.midi.addEvent(m.data, m.numBytes, m.samplePosition * factor);
+    }
+    processFn(osBuffer, slot.midi);
+    midiMessages.clear();
+    for (const auto m : slot.midi) {
+        midiMessages.addEvent(m.data, m.numBytes, m.samplePosition / factor);
+    }
     slot.os->processSamplesDown(block);
     return (int)std::round(slot.os->getLatencyInSamples());
 }
-
-template int Processor::runWithOversampling<float>(int, AudioBuffer<float>&, MidiBuffer&,
-                                                    const std::function<void(AudioBuffer<float>&, MidiBuffer&)>&);
-template int Processor::runWithOversampling<double>(int, AudioBuffer<double>&, MidiBuffer&,
-                                                     const std::function<void(AudioBuffer<double>&, MidiBuffer&)>&);
 
 void Processor::enableAllBuses() {
     traceScope();

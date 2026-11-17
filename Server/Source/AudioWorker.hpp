@@ -62,6 +62,7 @@ class AudioWorker : public Thread, public LogTagDelegate {
     void delPlugin(int idx);
     void exchangePlugins(int idxA, int idxB);
     std::shared_ptr<Processor> getProcessor(int idx) const { return m_chain->getProcessor(idx); }
+    void setOversamplingFactor(int idx, int factor) { m_chain->setOversamplingFactor(idx, factor); }
     int getSize() const { return static_cast<int>(m_chain->getSize()); }
     int getLatencySamples() const { return m_chain->getLatencySamples(); }
     void update() { m_chain->update(); }

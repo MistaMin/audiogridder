@@ -76,7 +76,20 @@ void Worker::run() {
         logln("failed to set master socket non-blocking");
     }
 
-    m_cmdIn.reset(accept(m_masterSocket.get(), 5000));
+    // the worker port is open to the network too, so the allow-list applies here as well
+    auto acceptAllowed = [this](int timeoutMs) -> StreamingSocket* {
+        auto* s = accept(m_masterSocket.get(), timeoutMs);
+        auto srv = getApp()->getServer();
+        if (nullptr != s && nullptr != srv && m_sandboxModeRuntime != Server::SANDBOX_PLUGIN &&
+            !srv->isClientAllowed(s->getHostName())) {
+            logln("rejecting client " << s->getHostName() << ": not in AllowedClients");
+            delete s;
+            return nullptr;
+        }
+        return s;
+    };
+
+    m_cmdIn.reset(acceptAllowed(5000));
     if (nullptr != m_cmdIn && m_cmdIn->isConnected()) {
         logln("client connected " << m_cmdIn->getHostName());
     } else {
@@ -85,8 +98,8 @@ void Worker::run() {
     }
 
     // command sending socket
-    m_cmdOut.reset(accept(m_masterSocket.get(), 2000));
-    if (nullptr == m_cmdIn || !m_cmdIn->isConnected()) {
+    m_cmdOut.reset(acceptAllowed(2000));
+    if (nullptr == m_cmdOut || !m_cmdOut->isConnected()) {
         logln("failed to establish command connection");
         return;
     }
@@ -94,7 +107,7 @@ void Worker::run() {
     std::unique_ptr<StreamingSocket> sock;
 
     // start audio processing
-    sock.reset(accept(m_masterSocket.get(), 2000));
+    sock.reset(acceptAllowed(2000));
     if (nullptr != sock && sock->isConnected()) {
         m_audio->init(std::move(sock), m_cfg);
         auto opts = agRealtimeOptions(jmax(1.0, (double)lround(m_cfg.samplesPerBlock / m_cfg.sampleRate * 1000) - 1));
@@ -105,7 +118,7 @@ void Worker::run() {
 
     // start screen capturing
     if (m_sandboxModeRuntime != Server::SANDBOX_PLUGIN) {
-        sock.reset(accept(m_masterSocket.get(), 2000));
+        sock.reset(acceptAllowed(2000));
         if (nullptr != sock && sock->isConnected()) {
             m_screen->init(std::move(sock));
             m_screen->startThread();
@@ -506,9 +519,7 @@ void Worker::handleMessage(std::shared_ptr<Message<UnbypassPlugin>> msg) {
 
 void Worker::handleMessage(std::shared_ptr<Message<SetPluginOversampling>> msg) {
     traceScope();
-    if (auto proc = m_audio->getProcessor(pDATA(msg)->idx)) {
-        proc->setOversamplingFactor(pDATA(msg)->factor);
-    }
+    m_audio->setOversamplingFactor(pDATA(msg)->idx, pDATA(msg)->factor);
 }
 
 void Worker::handleMessage(std::shared_ptr<Message<ExchangePlugins>> msg) {
@@ -764,111 +775,71 @@ bool Worker::KeyWatcher::keyPressed(const KeyPress& kp, Component*) {
 #endif
         keysToPress.push_back(getKeyCode("Command"));
     }
-    if (kp.isKeyCurrentlyDown(KeyPress::escapeKey)) {
-        keysToPress.push_back(getKeyCode("Escape"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::spaceKey)) {
-        keysToPress.push_back(getKeyCode("Space"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::returnKey)) {
-        keysToPress.push_back(getKeyCode("Return"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::tabKey)) {
-        keysToPress.push_back(getKeyCode("Tab"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::deleteKey)) {
-        keysToPress.push_back(getKeyCode("Delete"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::backspaceKey)) {
-        keysToPress.push_back(getKeyCode("Backspace"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::upKey)) {
-        keysToPress.push_back(getKeyCode("UpArrow"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::downKey)) {
-        keysToPress.push_back(getKeyCode("DownArrow"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::leftKey)) {
-        keysToPress.push_back(getKeyCode("LeftArrow"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::rightKey)) {
-        keysToPress.push_back(getKeyCode("RightArrow"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::pageUpKey)) {
-        keysToPress.push_back(getKeyCode("PageUp"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::pageDownKey)) {
-        keysToPress.push_back(getKeyCode("PageDown"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::homeKey)) {
-        keysToPress.push_back(getKeyCode("Home"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::endKey)) {
-        keysToPress.push_back(getKeyCode("End"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F1Key)) {
-        keysToPress.push_back(getKeyCode("F1"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F2Key)) {
-        keysToPress.push_back(getKeyCode("F2"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F3Key)) {
-        keysToPress.push_back(getKeyCode("F3"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F4Key)) {
-        keysToPress.push_back(getKeyCode("F4"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F5Key)) {
-        keysToPress.push_back(getKeyCode("F5"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F6Key)) {
-        keysToPress.push_back(getKeyCode("F6"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F7Key)) {
-        keysToPress.push_back(getKeyCode("F7"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F8Key)) {
-        keysToPress.push_back(getKeyCode("F8"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F9Key)) {
-        keysToPress.push_back(getKeyCode("F9"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F10Key)) {
-        keysToPress.push_back(getKeyCode("F10"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F11Key)) {
-        keysToPress.push_back(getKeyCode("F11"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F12Key)) {
-        keysToPress.push_back(getKeyCode("F12"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F13Key)) {
-        keysToPress.push_back(getKeyCode("F13"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F14Key)) {
-        keysToPress.push_back(getKeyCode("F14"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F15Key)) {
-        keysToPress.push_back(getKeyCode("F15"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F16Key)) {
-        keysToPress.push_back(getKeyCode("F16"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F17Key)) {
-        keysToPress.push_back(getKeyCode("F17"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F18Key)) {
-        keysToPress.push_back(getKeyCode("F18"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::F19Key)) {
-        keysToPress.push_back(getKeyCode("F19"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad0)) {
-        keysToPress.push_back(getKeyCode("Numpad0"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad1)) {
-        keysToPress.push_back(getKeyCode("Numpad1"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad2)) {
-        keysToPress.push_back(getKeyCode("Numpad2"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad3)) {
-        keysToPress.push_back(getKeyCode("Numpad3"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad4)) {
-        keysToPress.push_back(getKeyCode("Numpad4"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad5)) {
-        keysToPress.push_back(getKeyCode("Numpad5"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad6)) {
-        keysToPress.push_back(getKeyCode("Numpad6"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad7)) {
-        keysToPress.push_back(getKeyCode("Numpad7"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad8)) {
-        keysToPress.push_back(getKeyCode("Numpad8"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPad9)) {
-        keysToPress.push_back(getKeyCode("Numpad9"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPadMultiply)) {
-        keysToPress.push_back(getKeyCode("Numpad*"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPadDelete)) {
-        keysToPress.push_back(getKeyCode("NumpadClear"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPadAdd)) {
-        keysToPress.push_back(getKeyCode("Numpad+"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPadSubtract)) {
-        keysToPress.push_back(getKeyCode("Numpad-"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPadEquals)) {
-        keysToPress.push_back(getKeyCode("Numpad="));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPadDivide)) {
-        keysToPress.push_back(getKeyCode("Numpad/"));
-    } else if (kp.isKeyCurrentlyDown(KeyPress::numberPadDecimalPoint)) {
-        keysToPress.push_back(getKeyCode("Numpad."));
-    } else {
-        if (NOKEY != keyCode) {
-            keysToPress.push_back(keyCode);
+    static const std::pair<int, const char*> keyNames[] = {
+        {KeyPress::escapeKey, "Escape"},
+        {KeyPress::spaceKey, "Space"},
+        {KeyPress::returnKey, "Return"},
+        {KeyPress::tabKey, "Tab"},
+        {KeyPress::deleteKey, "Delete"},
+        {KeyPress::backspaceKey, "Backspace"},
+        {KeyPress::upKey, "UpArrow"},
+        {KeyPress::downKey, "DownArrow"},
+        {KeyPress::leftKey, "LeftArrow"},
+        {KeyPress::rightKey, "RightArrow"},
+        {KeyPress::pageUpKey, "PageUp"},
+        {KeyPress::pageDownKey, "PageDown"},
+        {KeyPress::homeKey, "Home"},
+        {KeyPress::endKey, "End"},
+        {KeyPress::F1Key, "F1"},
+        {KeyPress::F2Key, "F2"},
+        {KeyPress::F3Key, "F3"},
+        {KeyPress::F4Key, "F4"},
+        {KeyPress::F5Key, "F5"},
+        {KeyPress::F6Key, "F6"},
+        {KeyPress::F7Key, "F7"},
+        {KeyPress::F8Key, "F8"},
+        {KeyPress::F9Key, "F9"},
+        {KeyPress::F10Key, "F10"},
+        {KeyPress::F11Key, "F11"},
+        {KeyPress::F12Key, "F12"},
+        {KeyPress::F13Key, "F13"},
+        {KeyPress::F14Key, "F14"},
+        {KeyPress::F15Key, "F15"},
+        {KeyPress::F16Key, "F16"},
+        {KeyPress::F17Key, "F17"},
+        {KeyPress::F18Key, "F18"},
+        {KeyPress::F19Key, "F19"},
+        {KeyPress::numberPad0, "Numpad0"},
+        {KeyPress::numberPad1, "Numpad1"},
+        {KeyPress::numberPad2, "Numpad2"},
+        {KeyPress::numberPad3, "Numpad3"},
+        {KeyPress::numberPad4, "Numpad4"},
+        {KeyPress::numberPad5, "Numpad5"},
+        {KeyPress::numberPad6, "Numpad6"},
+        {KeyPress::numberPad7, "Numpad7"},
+        {KeyPress::numberPad8, "Numpad8"},
+        {KeyPress::numberPad9, "Numpad9"},
+        {KeyPress::numberPadMultiply, "Numpad*"},
+        {KeyPress::numberPadDelete, "NumpadClear"},
+        {KeyPress::numberPadAdd, "Numpad+"},
+        {KeyPress::numberPadSubtract, "Numpad-"},
+        {KeyPress::numberPadEquals, "Numpad="},
+        {KeyPress::numberPadDivide, "Numpad/"},
+        {KeyPress::numberPadDecimalPoint, "Numpad."},
+    };
+    const char* name = nullptr;
+    for (auto& kn : keyNames) {
+        if (kp.isKeyCurrentlyDown(kn.first)) {
+            name = kn.second;
+            break;
         }
     }
+    if (nullptr != name) {
+        keysToPress.push_back(getKeyCode(name));
+    } else if (NOKEY != keyCode) {
+        keysToPress.push_back(keyCode);
+    }
+
     worker->sendKeys(keysToPress);
 
     return true;

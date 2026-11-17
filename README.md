@@ -118,6 +118,14 @@ Windows ARM64 and Linux ARM64 are not released, but can be built from source, se
 Server and plug-in have the same requirements, and AudioGridder is 64bit only. Both editions are built
 from the same source, `AG_LEGACY=ON` selects the legacy one, see [DEVELOP.md](DEVELOP.md).
 
+# Network access
+
+The server has no password: every computer that can reach its ports can use it, including the mouse
+and keyboard control of plugin windows. Use it on a trusted network only. To limit who may connect,
+quit the server, list the IP addresses of your DAW computers in `AllowedClients` in the server config
+(`~/.audiogridder/audiogridderserver0.cfg`, on Windows in `%APPDATA%\AudioGridder`) and start it again:
+`"AllowedClients": ["192.168.1.20", "192.168.1.21"]`. An empty list allows everyone.
+
 # Freeware and licence
 
 AudioGridder binaries are freeware. They are provided **without warranty of any
