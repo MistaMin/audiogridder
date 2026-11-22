@@ -263,14 +263,22 @@ std::shared_ptr<ServiceReceiver> ServiceReceiver::getInstance() {
 }
 
 void ServiceReceiver::cleanup(uint64 id) {
-    std::lock_guard<std::mutex> lock(m_instMtx);
-    if (nullptr != m_inst) {
-        m_inst->m_updateFn.remove(id);
-        m_instRefCount--;
-        if (m_instRefCount == 0) {
-            m_inst->signalThreadShouldExit();
-            m_inst.reset();
+    std::shared_ptr<ServiceReceiver> old;
+    {
+        std::lock_guard<std::mutex> lock(m_instMtx);
+        if (nullptr != m_inst) {
+            m_inst->m_updateFn.remove(id);
+            m_instRefCount--;
+            if (m_instRefCount == 0) {
+                m_inst->signalThreadShouldExit();
+                old = std::move(m_inst);
+            }
         }
+    }
+    // Stop the thread without holding m_instMtx: queryCallback takes it, so waiting under the lock deadlocked
+    // until the thread was killed by force, which crashed the host.
+    if (nullptr != old) {
+        old->stopThread(1500);
     }
 }
 
