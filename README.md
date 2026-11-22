@@ -28,7 +28,7 @@ version is **1.3.5**. Compared to upstream 1.2 it adds:
 - universal macOS binaries (Apple Silicon and Intel),
 - per-plugin 2x/4x oversampling on the server,
 - a build against JUCE 9, using the patched JUCE fork at
-  [MistaMin/JUCE](https://github.com/MistaMin/JUCE) (branch `audiogridder-9.0.4`),
+  [MistaMin/JUCE](https://github.com/MistaMin/JUCE) (branch `audiogridder-9.0.5`),
 - signed and notarized macOS installers,
 - a guide for the macOS Accessibility, Screen Recording and local network
   permissions.

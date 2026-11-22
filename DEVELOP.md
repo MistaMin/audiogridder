@@ -39,7 +39,7 @@ when a VST2 SDK exists at `$AG_SDKS_ROOT/vstsdk2.4`, AAX when
 
 The `JUCE` submodule is a patched JUCE fork
 ([MistaMin/JUCE](https://github.com/MistaMin/JUCE), branch
-`audiogridder-9.0.4`). Its commit on top of the JUCE release tag carries the
+`audiogridder-9.0.5`). Its commit on top of the JUCE release tag carries the
 AudioGridder changes: unix domain socket and IPv6 support in `StreamingSocket`
 and the interprocess classes, extra launch arguments and separate read/ping
 timeouts for `ChildProcessCoordinator`/`ChildProcessWorker`, and

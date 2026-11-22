@@ -14,6 +14,8 @@ compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogrid
   could crash the server or the DAW. A client that connected and sent nothing blocked all new
   connections.
 - Fix: text with non-ASCII characters (preset names, clipboard, errors) was cut off or garbled.
+- Built against JUCE 9.0.5: the JUCE submodule now points at the `audiogridder-9.0.5` branch of
+  [MistaMin/JUCE](https://github.com/MistaMin/JUCE), the same patches on the newer JUCE release.
 - New: `AllowedClients` in the server config, a list of IP addresses that may connect. Empty allows
   everyone, as before.
 
