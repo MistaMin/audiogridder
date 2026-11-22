@@ -15,6 +15,9 @@ compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogrid
   connections.
 - Fix: host automation was applied late, by a different amount on every run, in offline renders (bounce,
   freeze, commit). The plug-in now sends parameter changes together with the audio block they belong to.
+- Fix: removing the plug-in while it was looking for servers on the network could hang for 1.5 s and then
+  crash the host.
+- Fix: the legacy plug-ins (macOS 10.7) linked VideoToolbox, which macOS 10.7 does not have.
 - Fix: text with non-ASCII characters (preset names, clipboard, errors) was cut off or garbled.
 - Built against JUCE 9.0.5: the JUCE submodule now points at the `audiogridder-9.0.5` branch of
   [MistaMin/JUCE](https://github.com/MistaMin/JUCE), the same patches on the newer JUCE release.

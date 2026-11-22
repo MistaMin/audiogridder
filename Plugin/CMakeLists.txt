@@ -93,8 +93,11 @@ macro(ag_add_plugin type)
     target_link_libraries(AudioGridder${type}
             PRIVATE
             "-framework CoreMedia"
-            "-framework VideoToolbox"
     )
+    # VideoToolbox is public from macOS 10.8 on; the legacy edition (10.7) must not link it (same as the server)
+    if(AG_MACOS_TARGET STRGREATER_EQUAL 10.8)
+      target_link_libraries(AudioGridder${type} PRIVATE "-framework VideoToolbox")
+    endif()
 
     ag_strip(AudioGridder${type}_AU AU)
   endif()
