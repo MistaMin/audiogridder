@@ -3,7 +3,7 @@
 Changes in this fork ([MistaMin/audiogridder](https://github.com/MistaMin/audiogridder))
 compared to upstream [apohl79/audiogridder](https://github.com/apohl79/audiogridder).
 
-## Unreleased
+## 1.3.6 (marcosfork)
 
 - Fix: changing the oversampling factor during playback could crash the server. The change now waits
   for the audio thread.
