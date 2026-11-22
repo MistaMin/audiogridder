@@ -441,6 +441,10 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
         int m_channel = 0;
         int m_paramIdx = 0;
         int m_slotId = 0;
+        // value set by the host that is not sent to the server yet (< 0: none)
+        std::atomic<float> m_pendingValue{-1.0f};
+
+        void flush();
 
         const LoadedPlugin& getPlugin() const { return m_proc.getLoadedPluginNoLock(m_idx); }
         LoadedPlugin& getPlugin() { return m_proc.getLoadedPluginNoLock(m_idx); }
@@ -455,6 +459,12 @@ class PluginProcessor : public AudioProcessor, public AudioProcessorParameter::L
 
         ENABLE_ASYNC_FUNCTORS();
     };
+
+    std::atomic_bool m_paramsPending{false};
+
+    // Sends host parameter changes to the server. Called on the audio thread right before a block is sent, so
+    // automation stays in step with the audio in offline renders (bounce, freeze, commit).
+    void flushParameterValues();
 
     class TrayConnection : public InterprocessConnection, public Thread, public LogTagDelegate {
       public:

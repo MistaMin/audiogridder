@@ -762,6 +762,8 @@ void PluginProcessor::processBlockInternal(AudioBuffer<T>& buffer, MidiBuffer& m
                     traceCtx->add("pb_ch_map");
                     traceCtx->startGroup();
 
+                    flushParameterValues();
+
                     bool sendOk = streamer->send(*sendBuffer, midiMessages, posInfo);
 
                     traceCtx->finishGroup("pb_send");
@@ -1760,10 +1762,27 @@ float PluginProcessor::Parameter::getValue() const {
 void PluginProcessor::Parameter::setValue(float newValue) {
     traceScope();
     if (m_idx > -1 && m_idx < m_proc.getNumOfLoadedPlugins() && m_paramIdx > -1) {
-        runOnMsgThreadAsync([this, newValue] {
-            traceScope();
-            m_proc.getClient().setParameterValue(m_idx, m_channel, m_paramIdx, newValue);
-        });
+        m_pendingValue = newValue;
+        m_proc.m_paramsPending = true;
+        // fallback for when no audio is processed, the audio thread sends it otherwise
+        runOnMsgThreadAsync([this] { flush(); });
+    }
+}
+
+void PluginProcessor::Parameter::flush() {
+    float val = m_pendingValue.exchange(-1.0f);
+    if (val >= 0.0f && m_idx > -1 && m_idx < m_proc.getNumOfLoadedPlugins() && m_paramIdx > -1) {
+        m_proc.getClient().setParameterValue(m_idx, m_channel, m_paramIdx, val);
+    }
+}
+
+void PluginProcessor::flushParameterValues() {
+    if (m_paramsPending.exchange(false)) {
+        for (auto* p : getParameters()) {
+            if (auto* pparam = dynamic_cast<Parameter*>(p)) {
+                pparam->flush();
+            }
+        }
     }
 }
 
